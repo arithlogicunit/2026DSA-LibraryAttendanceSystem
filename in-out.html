@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+
+    <title>Scan/Enter ID | Library Visit Desk</title>
+
+    <link rel="stylesheet" href="ui-structure.css" />
+  </head>
+
+  <body data-requires-session="true">
+    <main class="app-shell">
+      <a
+        class="skip-link"
+        href="#main-content"
+      >
+        Skip to main content
+      </a>
+
+      <div class="page-wrap">
+        <header class="masthead">
+          <div class="brand-mark">
+            <img
+              src="assets/NUD-LRC.jpg"
+              alt="School Logo"
+            />
+          </div>
+
+          <div class="system-name">
+            <p class="school-name">
+              National University - Dasmariñas
+            </p>
+
+            <h1>
+              Attendance Monitoring<br />
+              Library Management System
+            </h1>
+          </div>
+
+          <div class="header-actions">
+            <span
+              id="session-label"
+              class="session-label"
+              hidden
+            ></span>
+
+            <button
+              id="logout-button"
+              class="button button-header"
+              type="button"
+              hidden
+            >
+              Log out
+            </button>
+          </div>
+        </header>
+
+        <main
+          id="main-content"
+          class="page-stage"
+        >
+          <section
+            class="panel narrow"
+            aria-labelledby="scan-title"
+          >
+            <div class="screen-heading centered-heading">
+              <p class="eyebrow">
+                Single scan workflow
+              </p>
+
+              <h2 id="scan-title">
+                Check-in / Check-out
+              </h2>
+
+              <p>
+                Scan or type ID number.
+              </p>
+            </div>
+
+            <form
+              id="scan-form"
+              novalidate
+            >
+              <div class="field">
+                <label for="visit-id">
+                  Student ID / Staff ID
+                </label>
+
+                <input
+                  id="visit-id"
+                  name="visitorId"
+                  inputmode="text"
+                  autocomplete="off"
+                  placeholder="Scan or type ID"
+                  autofocus
+                  required
+                />
+
+                <small>
+                  Keyboard users can type the ID and press Enter.
+                </small>
+              </div>
+
+              <p
+                id="scan-error"
+                class="validation-message"
+                role="alert"
+                hidden
+              >
+                Enter or scan a visitor ID before processing it.
+              </p>
+
+              <div class="form-actions">
+                <a
+                  class="button button-secondary button-link"
+                  href="dashboard.html"
+                >
+                  Cancel
+                </a>
+
+                <button
+                  class="button button-primary"
+                  type="submit"
+                >
+                  Process ID
+                </button>
+              </div>
+            </form>
+
+            <section
+              id="scan-result"
+              class="scan-result"
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+              hidden
+            >
+              <div
+                id="scan-result-icon"
+                class="scan-result-icon"
+                aria-hidden="true"
+              >
+                ✓
+              </div>
+
+              <div>
+                <p
+                  id="scan-result-eyebrow"
+                  class="eyebrow"
+                >
+                  Visit recorded
+                </p>
+
+                <h3 id="scan-result-title">
+                  Check-in recorded
+                </h3>
+
+                <p id="scan-result-message"></p>
+              </div>
+            </section>
+          </section>
+        </main>
+      </div>
+    </main>
+
+    <script src="javascript-stuff.js"></script>
+  </body>
+</html>

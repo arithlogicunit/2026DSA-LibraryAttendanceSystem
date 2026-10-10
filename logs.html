@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+
+    <title>Report and Logs | Library Visit Desk</title>
+
+    <link rel="stylesheet" href="ui-structure.css" />
+  </head>
+
+  <body data-requires-session="true">
+    <main class="app-shell">
+      <a
+        class="skip-link"
+        href="#main-content"
+      >
+        Skip to main content
+      </a>
+
+      <div class="page-wrap">
+        <header class="masthead">
+          <div class="brand-mark">
+            <img
+              src="assets/NUD-LRC.jpg"
+              alt="School Logo"
+            />
+          </div>
+
+          <div class="system-name">
+            <p class="school-name">
+              National University - Dasmariñas
+            </p>
+
+            <h1>
+              Attendance Monitoring<br />
+              Library Management System
+            </h1>
+          </div>
+
+          <div class="header-actions">
+            <span
+              id="session-label"
+              class="session-label"
+              hidden
+            ></span>
+
+            <button
+              id="logout-button"
+              class="button button-header"
+              type="button"
+              hidden
+            >
+              Log out
+            </button>
+          </div>
+        </header>
+
+        <main
+          id="main-content"
+          class="page-stage"
+        >
+          <section
+            class="panel table-panel"
+            aria-labelledby="logs-title"
+          >
+            <div class="screen-heading split-heading">
+              <div>
+                <p class="eyebrow">
+                  Audit trail
+                </p>
+
+                <h2 id="logs-title">
+                  Report / Logs
+                </h2>
+
+                <p>
+                  Every check-in and check-out is listed in time order.
+                </p>
+              </div>
+
+              <a
+                class="button button-dashboard button-link"
+                href="dashboard.html"
+              >
+                ← Dashboard
+              </a>
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <caption class="sr-only">
+                  Today’s library visit history
+                </caption>
+
+                <thead>
+                  <tr>
+                    <th scope="col">Time</th>
+                    <th scope="col">Event</th>
+                    <th scope="col">User ID</th>
+                    <th scope="col">Name</th>
+                    <th scope="col">Recorded by</th>
+                  </tr>
+                </thead>
+
+                <tbody id="log-table-body"></tbody>
+              </table>
+            </div>
+
+            <p
+              id="logs-empty"
+              class="empty-state"
+              hidden
+            >
+              No visits have been recorded today.
+            </p>
+          </section>
+        </main>
+      </div>
+    </main>
+
+    <script src="javascript-stuff.js"></script>
+  </body>
+</html>
