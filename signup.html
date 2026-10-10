@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Staff Sign Up | Library Visit Desk</title>
+    <link rel="stylesheet" href="ui-structure.css" />
+  </head>
+
+  <body>
+    <main class="app-shell">
+      <div class="page-wrap">
+        <header class="masthead">
+          <div class="brand-mark">
+            <img src="assets/NUD-LRC.jpg" alt="School Logo" />
+          </div>
+          <div class="system-name">
+            <p class="school-name">National University - Dasmariñas</p>
+            <h1>Attendance Monitoring<br />Library Management System</h1>
+          </div>
+        </header>
+
+        <div class="page-stage">
+          <section class="panel narrow" aria-labelledby="signup-title">
+            <div class="screen-heading">
+              <p class="eyebrow">Staff access</p>
+              <h2 id="signup-title">Create account</h2>
+              <p>An admin must approve your account before you can log in.</p>
+            </div>
+
+            <form id="signup-form" novalidate>
+              <div class="field">
+                <label for="staff-id">Staff ID</label>
+                <input id="staff-id" name="staffId" autocomplete="username" required />
+              </div>
+
+              <div class="field">
+                <label for="full-name">Full name</label>
+                <input id="full-name" name="fullName" autocomplete="name" required />
+              </div>
+
+              <div class="field">
+                <label for="password">Password</label>
+                <input id="password" name="password" type="password" autocomplete="new-password" required />
+                <small>At least 8 characters.</small>
+              </div>
+
+              <div class="field">
+                <label for="confirm-password">Confirm password</label>
+                <input id="confirm-password" name="confirmPassword" type="password" autocomplete="new-password" required />
+              </div>
+
+              <p id="signup-message" class="validation-message" role="alert" hidden></p>
+
+              <div class="form-actions">
+                <a class="button button-secondary button-link" href="login.html">Back to log in</a>
+                <button id="signup-button" class="button button-primary" type="submit">Create account</button>
+              </div>
+            </form>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+    <script src="supabase-config.js"></script>
+    <script src="auth.js"></script>
+    <script>
+      const form = document.querySelector("#signup-form");
+      const message = document.querySelector("#signup-message");
+      const button = document.querySelector("#signup-button");
+
+      function showMessage(text, ok) {
+        message.textContent = text;
+        message.style.color = ok ? "var(--success)" : "var(--danger)";
+        message.hidden = false;
+      }
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        message.hidden = true;
+
+        const data = new FormData(form);
+        const staffId = cleanStaffId(data.get("staffId"));
+        const fullName = String(data.get("fullName")).trim();
+        const password = String(data.get("password"));
+        const confirm = String(data.get("confirmPassword"));
+
+        if (!staffId) return showMessage("Enter your Staff ID.", false);
+        if (!fullName) return showMessage("Enter your full name.", false);
+        if (password.length < 8) return showMessage("Password must be at least 8 characters.", false);
+        if (password !== confirm) return showMessage("The two passwords do not match.", false);
+
+        button.disabled = true;
+        const result = await signUpStaff(staffId, fullName, password);
+        button.disabled = false;
+
+        showMessage(result.message, result.ok);
+        if (result.ok) form.reset();
+      });
+    </script>
+  </body>
+</html>

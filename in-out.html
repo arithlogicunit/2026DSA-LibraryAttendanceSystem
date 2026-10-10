@@ -94,6 +94,7 @@
                 <input
                   id="visit-id"
                   name="visitorId"
+                  maxlength="20"
                   inputmode="text"
                   autocomplete="off"
                   placeholder="Scan or type ID"
@@ -122,6 +123,9 @@
                 >
                   Cancel
                 </a>
+                <button id="undo-button" class="button button-secondary" type="button">
+                  Undo last entry
+                </button>
 
                 <button
                   class="button button-primary"
@@ -168,6 +172,9 @@
       </div>
     </main>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+    <script src="supabase-config.js"></script>
+    <script src="auth.js"></script> 
     <script src="javascript-stuff.js"></script>
   </body>
 </html>
