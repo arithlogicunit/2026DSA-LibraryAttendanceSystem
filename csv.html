@@ -1,0 +1,870 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>CSV (Comma-Separated Values) | Library Visit Desk</title>
+
+    <link rel="stylesheet" href="ui-structure.css" />
+
+    <style>
+     
+      .analytics-panel { max-width: 1000px; }
+
+      .head-actions { display: flex; flex-wrap: wrap; gap: var(--space-1); align-self: flex-start; }
+      .button-pdf { color: #fff; background: var(--blue); border: 1px solid var(--blue); border-radius: 4px; min-height: 36px; padding: 6px var(--space-2); font-size: 0.84rem; font-weight: 800; white-space: nowrap; }
+      .button-pdf:hover { background: var(--blue-hover); }
+      .button-pdf:disabled { opacity: 0.55; cursor: not-allowed; }
+
+      .an-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: var(--space-2); align-items: end; margin-bottom: var(--space-3); padding: var(--space-2); background: var(--slate); border: 1px solid #d1dbe4; border-radius: 6px; }
+      .an-controls .field { margin: 0; }
+      .an-controls label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+
+      .an-status { margin: 0 0 var(--space-2); color: var(--muted); font-size: 0.9rem; min-height: 1.3em; }
+      .an-status.error { color: var(--danger); font-weight: 750; }
+
+      .an-section { margin-top: var(--space-4); }
+      .an-section h3 { margin: 0 0 var(--space-1); font-size: 1.15rem; color: var(--navy); }
+      .an-section > p { margin: 0 0 var(--space-2); color: var(--muted); font-size: 0.9rem; }
+
+      .an-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: var(--space-2); }
+      .an-card { padding: var(--space-2); background: var(--gold-soft); border: 1px solid #c9a45b; border-top: 4px solid var(--gold); border-radius: 6px; }
+      .an-card .an-period { margin: 0; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--blue); }
+      .an-card .an-label { margin: 2px 0 var(--space-2); font-weight: 700; color: var(--navy); }
+      .an-card .an-nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-1); text-align: center; }
+      .an-card strong { display: block; font-size: 1.7rem; line-height: 1.1; color: var(--navy); }
+      .an-card span.an-cap { font-size: 0.68rem; font-weight: 750; text-transform: uppercase; color: var(--muted); }
+
+      .an-peaks { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: var(--space-2); margin-bottom: var(--space-2); }
+      .an-peak { padding: var(--space-2); background: var(--blue-soft); border: 1px solid #a7bed1; border-left: 4px solid var(--blue); border-radius: 5px; }
+      .an-peak.out { background: var(--gold-soft); border-color: #c9a45b; border-left-color: var(--gold); }
+      .an-peak p { margin: 0; font-size: 0.74rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+      .an-peak strong { display: block; margin: 4px 0 2px; font-size: 1.35rem; color: var(--navy); }
+      .an-peak small { margin: 0; }
+
+      .an-chart-wrap { overflow-x: auto; padding: var(--space-2); background: #fff; border: 1px solid #aebdca; border-radius: 5px; }
+      .an-chart { display: flex; align-items: flex-end; gap: 4px; min-width: 640px; }
+      .an-col { flex: 1; min-width: 0; text-align: center; }
+      .an-bars { display: flex; align-items: flex-end; justify-content: center; gap: 1px; height: 160px; }
+      .an-bar { flex: 1; max-width: 14px; border-radius: 2px 2px 0 0; }
+      .an-bar.in { background: var(--blue); }
+      .an-bar.out { background: var(--gold); }
+      .an-bar.peak { outline: 2px solid var(--navy); }
+      .an-hlabel { height: 1.2em; margin-top: 4px; font-size: 0.66rem; color: var(--muted); white-space: nowrap; }
+      .an-legend { display: flex; gap: var(--space-3); margin-top: var(--space-1); font-size: 0.82rem; color: var(--muted); }
+      .an-legend i { display: inline-block; width: 12px; height: 12px; margin-right: 6px; border-radius: 2px; vertical-align: -1px; }
+      .an-legend .in { background: var(--blue); }
+      .an-legend .out { background: var(--gold); }
+
+      .rank { font-weight: 900; color: var(--blue); }
+      table { min-width: 0; }
+      .table-wrap table { min-width: 520px; }
+
+      .denied { max-width: 560px; text-align: center; }
+      .denied .button { margin-top: var(--space-3); }
+
+      @media (max-width: 700px) {
+        .head-actions { width: 100%; }
+        .head-actions .button, .head-actions button { flex: 1; }
+      }
+    </style>
+  </head>
+
+  <body>
+    <main class="app-shell">
+      <a class="skip-link" href="#main-content">Skip to main content</a>
+
+      <div class="page-wrap">
+        <header class="masthead">
+          <div class="brand-mark">
+            <img src="assets/NUD-LRC.jpg" alt="School Logo" />
+          </div>
+
+          <div class="system-name">
+            <p class="school-name">National University - Dasmariñas</p>
+            <h1>
+              Attendance Monitoring<br />
+              Library Management System
+            </h1>
+          </div>
+
+          <div class="header-actions">
+            <span id="session-label" class="session-label" hidden></span>
+            <button id="logout-button" class="button button-header" type="button" hidden>Log out</button>
+          </div>
+        </header>
+
+        <main id="main-content" class="page-stage">
+
+          <!-- Shown while the session / admin role is being checked -->
+          <section id="checking" class="panel narrow" aria-live="polite">
+            <p class="eyebrow">CSV (Comma-Separated Values)</p>
+            <h2>Checking access…</h2>
+          </section>
+
+          
+          <section id="denied" class="panel denied" hidden>
+            <p class="eyebrow">CSV (Comma-Separated Values)</p>
+            <h2>Admins only</h2>
+            <p class="form-note">Your account does not have admin access to the attendance dashboard.</p>
+            <a class="button button-primary button-link" href="dashboard.html">← Back to Dashboard</a>
+          </section>
+
+          
+          <section id="module" class="panel analytics-panel" aria-labelledby="module-title" hidden>
+            <div class="screen-heading split-heading">
+              <div>
+                <p class="eyebrow">Admin only · CSV (Comma-Separated Values)</p>
+                <h2 id="module-title">Attendance Leaderboard</h2>
+                <p id="module-date"></p>
+              </div>
+
+              <div class="head-actions">
+                <a class="button button-dashboard button-link" href="dashboard.html">← Dashboard</a>
+                <button id="pdf-button" class="button-pdf" type="button" disabled>Download PDF</button>
+              </div>
+            </div>
+
+            <div class="an-controls">
+              <div class="field">
+                <label for="ctl-date">Date</label>
+                <input id="ctl-date" type="date" />
+              </div>
+              <div class="field">
+                <label for="ctl-view">View</label>
+                <select id="ctl-view">
+                  <option value="day">Day</option>
+                  <option value="month">Month</option>
+                  <option value="year">Year</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="ctl-type">Visitor type</label>
+                <select id="ctl-type">
+                  <option value="all">All visitors</option>
+                  <option value="student">Students only</option>
+                  <option value="staff">Staff only</option>
+                </select>
+              </div>
+              <div class="field">
+                <button id="refresh-button" class="button button-secondary" type="button" style="width:100%">Refresh data</button>
+              </div>
+            </div>
+
+            <p id="an-status" class="an-status" role="status"></p>
+
+            <!-- Day / Month / Year totals -->
+            <div class="an-cards" id="summary-cards"></div>
+
+            <!-- Peak hours -->
+            <div class="an-section">
+              <h3>Peak hours</h3>
+              <p id="peak-caption">Busiest hours of the day for the selected period (Philippine time).</p>
+
+              <div class="an-peaks">
+                <div class="an-peak">
+                  <p>Peak check-in hour</p>
+                  <strong id="peak-in-hour">—</strong>
+                  <small id="peak-in-count"></small>
+                </div>
+                <div class="an-peak out">
+                  <p>Peak check-out hour</p>
+                  <strong id="peak-out-hour">—</strong>
+                  <small id="peak-out-count"></small>
+                </div>
+              </div>
+
+              <div class="an-chart-wrap">
+                <div class="an-chart" id="hour-chart" role="img" aria-label="Check-ins and check-outs by hour of day"></div>
+              </div>
+              <div class="an-legend">
+                <span><i class="in"></i>Check-ins</span>
+                <span><i class="out"></i>Check-outs</span>
+              </div>
+
+              <div class="table-wrap" style="margin-top: var(--space-2)">
+                <table>
+                  <caption class="sr-only">Check-ins and check-outs per hour</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Hour</th>
+                      <th scope="col">Check-ins</th>
+                      <th scope="col">Check-outs</th>
+                      <th scope="col">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody id="peak-table-body"></tbody>
+                </table>
+              </div>
+              <p id="peak-empty" class="empty-state" hidden>No check-ins or check-outs in this period.</p>
+            </div>
+
+            <!-- Daily (month view) / Monthly (year view) trend -->
+            <div class="an-section" id="trend-section" hidden>
+              <h3 id="trend-title">Daily breakdown</h3>
+              <div class="table-wrap">
+                <table>
+                  <caption class="sr-only">Attendance breakdown</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col" id="trend-col">Day</th>
+                      <th scope="col">Check-ins</th>
+                      <th scope="col">Check-outs</th>
+                      <th scope="col">Unique visitors</th>
+                    </tr>
+                  </thead>
+                  <tbody id="trend-table-body"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Leaderboard -->
+            <div class="an-section">
+              <h3>Leaderboard · most frequent visitors</h3>
+              <p>Top 10 by number of check-ins in the selected period.</p>
+              <div class="table-wrap">
+                <table>
+                  <caption class="sr-only">Most frequent library visitors</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Rank</th>
+                      <th scope="col">User ID</th>
+                      <th scope="col">Name</th>
+                      <th scope="col">Type</th>
+                      <th scope="col">Visits</th>
+                      <th scope="col">Last visit</th>
+                    </tr>
+                  </thead>
+                  <tbody id="board-table-body"></tbody>
+                </table>
+              </div>
+              <p id="board-empty" class="empty-state" hidden>No visits in this period.</p>
+            </div>
+
+            <aside class="privacy-note">
+              <strong>Privacy reminder:</strong>
+              This report contains visitor details. Download and share it only with authorized staff.
+            </aside>
+          </section>
+        </main>
+      </div>
+    </main>
+
+   
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+    <script src="supabase-config.js"></script>
+    <script src="auth.js"></script>
+
+   
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+    <script>
+     
+
+      const $ = (sel) => document.querySelector(sel);
+      const MANILA_OFFSET_MS = 8 * 60 * 60 * 1000; // Asia/Manila is UTC+8, no daylight saving
+      const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+      const mod = {
+        staff: null,            
+        patrons: new Map(),     
+        yearCache: {},          
+        report: null            
+      };
+
+     
+
+      function goTo(page) { window.location.href = page; }
+
+      function manilaParts(ms) {
+        const iso = new Date(ms + MANILA_OFFSET_MS).toISOString(); // shifted so UTC fields = Manila fields
+        return { day: iso.slice(0, 10), month: iso.slice(0, 7), hour: Number(iso.slice(11, 13)) };
+      }
+
+      function todayManila() { return manilaParts(Date.now()).day; }
+
+      function hourLabel(h) {
+        const hh = h % 12 || 12;
+        return `${hh}:00 ${h < 12 ? "AM" : "PM"}`;
+      }
+      function hourShort(h) {
+        const hh = h % 12 || 12;
+        return `${hh}${h < 12 ? "a" : "p"}`;
+      }
+      function hourRange(h) { return `${hourLabel(h)} – ${hourLabel((h + 1) % 24)}`; }
+
+      function formatDateTime(ms) {
+        return new Intl.DateTimeFormat("en-PH", {
+          timeZone: "Asia/Manila", month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit"
+        }).format(new Date(ms));
+      }
+
+      function longDate(dayKey) {
+        return new Intl.DateTimeFormat("en-US", {
+          timeZone: "UTC", weekday: "long", month: "long", day: "numeric", year: "numeric"
+        }).format(new Date(`${dayKey}T12:00:00Z`));
+      }
+      function monthName(monthKey) {
+        return new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "long", year: "numeric" })
+          .format(new Date(`${monthKey}-01T12:00:00Z`));
+      }
+
+      function setStatus(message, isError) {
+        const el = $("#an-status");
+        el.textContent = message || "";
+        el.classList.toggle("error", Boolean(isError));
+      }
+
+      function fillRows(tbody, rows, classes) {
+        tbody.innerHTML = "";
+        rows.forEach((values) => {
+          const tr = document.createElement("tr");
+          values.forEach((value, i) => {
+            const td = document.createElement("td");
+            td.textContent = value;
+            if (classes && classes[i]) td.className = classes[i];
+            tr.append(td);
+          });
+          tbody.append(tr);
+        });
+      }
+
+      
+
+      function isAdminRole(role) {
+        return String(role || "").toLowerCase().includes("admin");
+      }
+
+      function showOnly(id) {
+        ["#checking", "#denied", "#module"].forEach((sel) => { $(sel).hidden = sel !== id; });
+      }
+
+      function setupHeader() {
+        const label = $("#session-label");
+        const logout = $("#logout-button");
+        if (mod.staff) {
+          label.textContent = `Signed in: ${mod.staff.id}`;
+          label.hidden = false;
+        }
+        logout.hidden = false;
+        logout.addEventListener("click", async () => {
+          if (typeof db !== "undefined") await db.auth.signOut();
+          try {
+            const saved = JSON.parse(localStorage.getItem("libraryVisitDesk") || "{}");
+            saved.staff = null;
+            localStorage.setItem("libraryVisitDesk", JSON.stringify(saved));
+          } catch { /* ignore */ }
+          goTo("welcome.html");
+        });
+      }
+
+      async function guard() {
+        if (typeof db === "undefined") { goTo("login.html"); return false; }
+
+        const { data } = await db.auth.getSession();
+        if (!data.session) { goTo("login.html"); return false; }
+
+        const { data: profile } = await db
+          .from("profiles")
+          .select("staff_id, role, status")
+          .eq("id", data.session.user.id)
+          .single();
+
+        if (!profile || profile.status !== "active") {
+          await db.auth.signOut();
+          goTo("login.html");
+          return false;
+        }
+
+        mod.staff = { id: profile.staff_id, role: profile.role, uid: data.session.user.id };
+        setupHeader();
+
+        if (!isAdminRole(profile.role)) { showOnly("#denied"); return false; }
+        return true;
+      }
+
+     
+
+      async function loadPatrons() {
+        mod.patrons.clear();
+        const { data, error } = await db.from("patrons").select("id_number, full_name, type, status");
+        if (error) { console.error("Could not load patrons", error); return false; }
+        data.forEach((p) => mod.patrons.set(p.id_number, { name: p.full_name, type: p.type, status: p.status }));
+        return true;
+      }
+
+      // Supabase returns at most 1000 rows per request, so read the whole year page by page.
+      async function fetchYearRows(year) {
+        const from = new Date(`${year}-01-01T00:00:00+08:00`).toISOString();
+        const to = new Date(`${year + 1}-01-01T00:00:00+08:00`).toISOString();
+        const PAGE = 1000;
+        let all = [];
+        for (let start = 0; ; start += PAGE) {
+          const { data, error } = await db
+            .from("attendance_logs")
+            .select("id_number, event_type, event_time")
+            .gte("event_time", from)
+            .lt("event_time", to)
+            .order("event_time", { ascending: true })
+            .order("id_number", { ascending: true })
+            .range(start, start + PAGE - 1);
+          if (error) throw error;
+          all = all.concat(data);
+          if (data.length < PAGE) break;
+        }
+        return all;
+      }
+
+      
+      function cleanEvents(rows) {
+        const stacks = new Map();
+        for (const row of rows) {
+          const id = row.id_number;
+          if (!stacks.has(id)) stacks.set(id, []);
+          const stack = stacks.get(id);
+
+          if (row.event_type === "correction") { stack.pop(); continue; }
+          if (row.event_type !== "check_in" && row.event_type !== "check_out") continue;
+
+          const ms = new Date(row.event_time).getTime();
+          if (isNaN(ms)) continue;
+          const p = manilaParts(ms);
+          stack.push({ id, type: row.event_type, ms, day: p.day, month: p.month, hour: p.hour });
+        }
+        return [...stacks.values()].flat();
+      }
+
+      async function loadYear(year, force) {
+        if (!force && mod.yearCache[year]) return mod.yearCache[year];
+        const rows = await fetchYearRows(year);
+        mod.yearCache[year] = cleanEvents(rows);
+        return mod.yearCache[year];
+      }
+
+     
+
+      function patronType(id) {
+        const p = mod.patrons.get(id);
+        return p ? String(p.type || "").toLowerCase() : "unknown";
+      }
+
+      function summarize(events) {
+        let ins = 0, outs = 0;
+        const people = new Set();
+        events.forEach((e) => {
+          if (e.type === "check_in") ins++; else outs++;
+          people.add(e.id);
+        });
+        return { ins, outs, unique: people.size };
+      }
+
+      function hourArrays(events) {
+        const ins = new Array(24).fill(0);
+        const outs = new Array(24).fill(0);
+        events.forEach((e) => { (e.type === "check_in" ? ins : outs)[e.hour]++; });
+        return { ins, outs };
+      }
+
+      function peakOf(arr) {
+        let best = -1, max = 0;
+        arr.forEach((n, h) => { if (n > max) { max = n; best = h; } });
+        return best < 0 ? null : { hour: best, count: max };
+      }
+
+      function buildLeaderboard(events) {
+        const map = new Map();
+        events.forEach((e) => {
+          if (e.type !== "check_in") return;
+          const row = map.get(e.id) || { id: e.id, visits: 0, last: 0 };
+          row.visits++;
+          if (e.ms > row.last) row.last = e.ms;
+          map.set(e.id, row);
+        });
+        return [...map.values()]
+          .map((r) => {
+            const p = mod.patrons.get(r.id);
+            return { ...r, name: p ? p.name : "(not in directory)", type: p ? p.type : "" };
+          })
+          .sort((a, b) => b.visits - a.visits || a.name.localeCompare(b.name))
+          .slice(0, 10);
+      }
+
+      function buildTrend(view, yearEvents, selected) {
+        if (view === "month") {
+          const [y, m] = selected.month.split("-").map(Number);
+          const days = new Date(Date.UTC(y, m, 0)).getUTCDate();
+          const rows = [];
+          for (let d = 1; d <= days; d++) {
+            const key = `${selected.month}-${String(d).padStart(2, "0")}`;
+            const s = summarize(yearEvents.filter((e) => e.day === key));
+            rows.push([`${MONTHS[m - 1]} ${d}`, s.ins, s.outs, s.unique]);
+          }
+          return { title: `Daily breakdown · ${monthName(selected.month)}`, col: "Day", rows };
+        }
+        if (view === "year") {
+          const rows = [];
+          for (let m = 1; m <= 12; m++) {
+            const key = `${selected.year}-${String(m).padStart(2, "0")}`;
+            const s = summarize(yearEvents.filter((e) => e.month === key));
+            rows.push([`${MONTHS[m - 1]} ${selected.year}`, s.ins, s.outs, s.unique]);
+          }
+          return { title: `Monthly breakdown · ${selected.year}`, col: "Month", rows };
+        }
+        return null;
+      }
+
+      
+
+      function renderCards(report) {
+        const wrap = $("#summary-cards");
+        wrap.innerHTML = "";
+        report.cards.forEach((c) => {
+          const card = document.createElement("div");
+          card.className = "an-card";
+
+          const period = document.createElement("p");
+          period.className = "an-period";
+          period.textContent = c.period;
+
+          const label = document.createElement("p");
+          label.className = "an-label";
+          label.textContent = c.label;
+
+          const nums = document.createElement("div");
+          nums.className = "an-nums";
+          [["Check-ins", c.ins], ["Check-outs", c.outs], ["Visitors", c.unique]].forEach(([cap, val]) => {
+            const box = document.createElement("div");
+            const strong = document.createElement("strong");
+            strong.textContent = val;
+            const span = document.createElement("span");
+            span.className = "an-cap";
+            span.textContent = cap;
+            box.append(strong, span);
+            nums.append(box);
+          });
+
+          card.append(period, label, nums);
+          wrap.append(card);
+        });
+      }
+
+      function renderPeaks(report) {
+        const { peakIn, peakOut } = report;
+        $("#peak-in-hour").textContent = peakIn ? hourRange(peakIn.hour) : "No data";
+        $("#peak-in-count").textContent = peakIn ? `${peakIn.count} check-in${peakIn.count === 1 ? "" : "s"}` : "";
+        $("#peak-out-hour").textContent = peakOut ? hourRange(peakOut.hour) : "No data";
+        $("#peak-out-count").textContent = peakOut ? `${peakOut.count} check-out${peakOut.count === 1 ? "" : "s"}` : "";
+        $("#peak-caption").textContent =
+          `Busiest hours for ${report.periodLabel} — ${report.typeLabel.toLowerCase()} (Philippine time).`;
+
+        const chart = $("#hour-chart");
+        chart.innerHTML = "";
+        const max = Math.max(1, ...report.ins, ...report.outs);
+
+        for (let h = 0; h < 24; h++) {
+          const col = document.createElement("div");
+          col.className = "an-col";
+          col.title = `${hourRange(h)}: ${report.ins[h]} in, ${report.outs[h]} out`;
+
+          const bars = document.createElement("div");
+          bars.className = "an-bars";
+
+          [["in", report.ins[h], peakIn && peakIn.hour === h], ["out", report.outs[h], peakOut && peakOut.hour === h]]
+            .forEach(([kind, value, isPeak]) => {
+              const bar = document.createElement("div");
+              bar.className = `an-bar ${kind}${isPeak ? " peak" : ""}`;
+              bar.style.height = value > 0 ? `max(2px, ${(value / max) * 100}%)` : "0";
+              bars.append(bar);
+            });
+
+          const label = document.createElement("div");
+          label.className = "an-hlabel";
+          label.textContent = h % 3 === 0 ? hourShort(h) : "";
+
+          col.append(bars, label);
+          chart.append(col);
+        }
+
+        const rows = [];
+        for (let h = 0; h < 24; h++) {
+          if (report.ins[h] || report.outs[h]) rows.push([hourRange(h), report.ins[h], report.outs[h], report.ins[h] + report.outs[h]]);
+        }
+        report.peakRows = rows;
+        fillRows($("#peak-table-body"), rows);
+        $("#peak-empty").hidden = rows.length !== 0;
+      }
+
+      function renderTrend(report) {
+        const section = $("#trend-section");
+        if (!report.trend) { section.hidden = true; return; }
+        section.hidden = false;
+        $("#trend-title").textContent = report.trend.title;
+        $("#trend-col").textContent = report.trend.col;
+        fillRows($("#trend-table-body"), report.trend.rows);
+      }
+
+      function renderBoard(report) {
+        const rows = report.board.map((r, i) => [i + 1, r.id, r.name, r.type || "—", r.visits, formatDateTime(r.last)]);
+        fillRows($("#board-table-body"), rows, ["rank"]);
+        $("#board-empty").hidden = rows.length !== 0;
+      }
+
+      function compute(yearEvents) {
+        const date = $("#ctl-date").value || todayManila();
+        const view = $("#ctl-view").value;
+        const typeSel = $("#ctl-type").value;
+
+        const selected = { day: date, month: date.slice(0, 7), year: Number(date.slice(0, 4)) };
+
+        const filtered = typeSel === "all" ? yearEvents : yearEvents.filter((e) => patronType(e.id) === typeSel);
+        const dayEvents = filtered.filter((e) => e.day === selected.day);
+        const monthEvents = filtered.filter((e) => e.month === selected.month);
+
+        const periodEvents = view === "day" ? dayEvents : view === "month" ? monthEvents : filtered;
+        const periodLabel = view === "day" ? longDate(selected.day) : view === "month" ? monthName(selected.month) : `Year ${selected.year}`;
+        const typeLabel = typeSel === "all" ? "All visitors" : typeSel === "student" ? "Students only" : "Staff only";
+
+        const { ins, outs } = hourArrays(periodEvents);
+
+        const d = summarize(dayEvents), m = summarize(monthEvents), y = summarize(filtered);
+
+        return {
+          view, typeLabel, periodLabel, selected, ins, outs,
+          cards: [
+            { period: "Day", label: longDate(selected.day), ...d },
+            { period: "Month", label: monthName(selected.month), ...m },
+            { period: "Year", label: String(selected.year), ...y }
+          ],
+          peakIn: peakOf(ins),
+          peakOut: peakOf(outs),
+          trend: buildTrend(view, filtered, selected),
+          board: buildLeaderboard(periodEvents),
+          generatedAt: formatDateTime(Date.now())
+        };
+      }
+
+      function render() {
+        const year = Number(($("#ctl-date").value || todayManila()).slice(0, 4));
+        const yearEvents = mod.yearCache[year];
+        if (!yearEvents) return;
+
+        const report = compute(yearEvents);
+        mod.report = report;
+
+        renderCards(report);
+        renderPeaks(report);
+        renderTrend(report);
+        renderBoard(report);
+        $("#pdf-button").disabled = false;
+      }
+
+      async function refresh(force) {
+        const date = $("#ctl-date").value || todayManila();
+        const year = Number(date.slice(0, 4));
+        $("#module-date").textContent = `${longDate(todayManila())} · all times are Philippine time`;
+
+        if (force || !mod.yearCache[year]) {
+          setStatus("Loading attendance data…");
+          $("#pdf-button").disabled = true;
+          try {
+            await loadYear(year, force);
+          } catch (err) {
+            console.error("Could not load attendance logs", err);
+            setStatus("Could not load the attendance data. Check the connection and your admin permissions, then press Refresh.", true);
+            return;
+          }
+        }
+
+        const total = mod.yearCache[year].length;
+        setStatus(`Loaded ${total.toLocaleString()} attendance event${total === 1 ? "" : "s"} for ${year}. Updated ${formatDateTime(Date.now())}.`);
+        render();
+      }
+
+      /* ---------- PDF download ---------- */
+
+      function drawPdfChart(doc, x, y, w, h, report) {
+        const max = Math.max(1, ...report.ins, ...report.outs);
+        const slot = w / 24;
+        const barW = Math.min(3, slot / 2.4);
+
+        doc.setDrawColor(184, 197, 209);
+        doc.setLineWidth(0.2);
+        doc.line(x, y + h, x + w, y + h);
+
+        for (let hr = 0; hr < 24; hr++) {
+          const cx = x + slot * hr + slot / 2;
+          const hi = (report.ins[hr] / max) * (h - 4);
+          const ho = (report.outs[hr] / max) * (h - 4);
+
+          doc.setFillColor(31, 95, 156);
+          if (hi > 0) doc.rect(cx - barW, y + h - hi, barW, hi, "F");
+          doc.setFillColor(217, 167, 62);
+          if (ho > 0) doc.rect(cx, y + h - ho, barW, ho, "F");
+
+          doc.setFontSize(6);
+          doc.setTextColor(83, 98, 115);
+          doc.text(hourShort(hr), cx, y + h + 3.5, { align: "center" });
+        }
+
+        // legend
+        const ly = y + h + 8;
+        doc.setFillColor(31, 95, 156); doc.rect(x, ly - 2.4, 3, 3, "F");
+        doc.setTextColor(23, 37, 54); doc.setFontSize(7); doc.text("Check-ins", x + 4.5, ly);
+        doc.setFillColor(217, 167, 62); doc.rect(x + 25, ly - 2.4, 3, 3, "F");
+        doc.text("Check-outs", x + 29.5, ly);
+      }
+
+      function downloadPdf() {
+        const r = mod.report;
+        if (!r) return;
+        if (!window.jspdf || !window.jspdf.jsPDF) {
+          setStatus("The PDF library could not be loaded. Check the internet connection and try again.", true);
+          return;
+        }
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ unit: "mm", format: "a4" });
+        const W = 210, M = 14;
+
+        // Header band (matches the system's navy + gold)
+        doc.setFillColor(18, 43, 69);
+        doc.rect(0, 0, W, 28, "F");
+        doc.setFillColor(217, 167, 62);
+        doc.rect(0, 28, W, 1.6, "F");
+        doc.setTextColor(213, 228, 242);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        doc.text("NATIONAL UNIVERSITY - DASMARIÑAS", M, 10);
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(13);
+        doc.text("Attendance Analytics Report", M, 18);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.text("Attendance Monitoring · Library Management System", M, 24);
+
+        // Report details
+        doc.setTextColor(23, 37, 54);
+        doc.setFontSize(9);
+        const viewName = r.view === "day" ? "Daily" : r.view === "month" ? "Monthly" : "Yearly";
+        const details = [
+          `Report: ${viewName} · ${r.periodLabel}`,
+          `Visitors: ${r.typeLabel}`,
+          `Generated: ${r.generatedAt} (Philippine time) by ${mod.staff ? mod.staff.id : "Admin"}`
+        ];
+        details.forEach((line, i) => doc.text(line, M, 38 + i * 5));
+
+        // Day / month / year totals
+        doc.autoTable({
+          startY: 55,
+          head: [["Period", "Date", "Check-ins", "Check-outs", "Unique visitors"]],
+          body: r.cards.map((c) => [c.period, c.label, c.ins, c.outs, c.unique]),
+          theme: "grid",
+          styles: { fontSize: 8.5, cellPadding: 2 },
+          headStyles: { fillColor: [217, 167, 62], textColor: [18, 43, 69] },
+          margin: { left: M, right: M }
+        });
+
+        // Peak hours
+        let y = doc.lastAutoTable.finalY + 10;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.setTextColor(18, 43, 69);
+        doc.text("Peak hours", M, y);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.setTextColor(23, 37, 54);
+        doc.text(`Peak check-in: ${r.peakIn ? `${hourRange(r.peakIn.hour)} (${r.peakIn.count})` : "No data"}`, M, y + 6);
+        doc.text(`Peak check-out: ${r.peakOut ? `${hourRange(r.peakOut.hour)} (${r.peakOut.count})` : "No data"}`, M, y + 11);
+
+        drawPdfChart(doc, M, y + 17, W - M * 2, 42, r);
+
+        if (r.peakRows.length) {
+          doc.autoTable({
+            startY: y + 17 + 42 + 14,
+            head: [["Hour", "Check-ins", "Check-outs", "Total"]],
+            body: r.peakRows,
+            theme: "grid",
+            styles: { fontSize: 8, cellPadding: 1.6 },
+            headStyles: { fillColor: [18, 43, 69], textColor: 255 },
+            margin: { left: M, right: M }
+          });
+          y = doc.lastAutoTable.finalY;
+        } else {
+          y = y + 17 + 42 + 14;
+        }
+
+        // Daily / monthly breakdown
+        if (r.trend) {
+          doc.autoTable({
+            startY: y + 10,
+            head: [[r.trend.col, "Check-ins", "Check-outs", "Unique visitors"]],
+            body: r.trend.rows,
+            theme: "grid",
+            styles: { fontSize: 8, cellPadding: 1.6 },
+            headStyles: { fillColor: [18, 43, 69], textColor: 255 },
+            margin: { left: M, right: M },
+            didDrawPage: () => {},
+            didParseCell: () => {}
+          });
+          y = doc.lastAutoTable.finalY;
+        }
+
+        // Leaderboard
+        if (y > 245) { doc.addPage(); y = 10; }
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.setTextColor(18, 43, 69);
+        doc.text("Leaderboard - most frequent visitors", M, y + 10);
+
+        doc.autoTable({
+          startY: y + 13,
+          head: [["Rank", "User ID", "Name", "Type", "Visits", "Last visit"]],
+          body: r.board.length
+            ? r.board.map((b, i) => [i + 1, b.id, b.name, b.type || "-", b.visits, formatDateTime(b.last)])
+            : [["", "", "No visits in this period.", "", "", ""]],
+          theme: "grid",
+          styles: { fontSize: 8, cellPadding: 1.8 },
+          headStyles: { fillColor: [217, 167, 62], textColor: [18, 43, 69] },
+          margin: { left: M, right: M }
+        });
+
+        // Footer on every page
+        const pages = doc.getNumberOfPages();
+        for (let i = 1; i <= pages; i++) {
+          doc.setPage(i);
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(7);
+          doc.setTextColor(83, 98, 115);
+          doc.text("Confidential - for authorized library staff only.", M, 290);
+          doc.text(`Page ${i} of ${pages}`, W - M, 290, { align: "right" });
+        }
+
+        const key = r.view === "day" ? r.selected.day : r.view === "month" ? r.selected.month : String(r.selected.year);
+        doc.save(`attendance-report-${r.view}-${key}.pdf`);
+      }
+
+      /* ---------- start ---------- */
+
+      (async function start() {
+        const allowed = await guard();
+        if (!allowed) return;
+
+        showOnly("#module");
+        $("#ctl-date").value = todayManila();
+        $("#ctl-date").max = todayManila();
+
+        $("#ctl-date").addEventListener("change", () => refresh(false));
+        $("#ctl-view").addEventListener("change", render);
+        $("#ctl-type").addEventListener("change", render);
+        $("#refresh-button").addEventListener("click", () => refresh(true));
+        $("#pdf-button").addEventListener("click", downloadPdf);
+
+        setStatus("Loading attendance data…");
+        await loadPatrons();
+        await refresh(true);
+      })();
+    </script>
+  </body>
+</html>
