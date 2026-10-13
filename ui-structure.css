@@ -718,3 +718,8 @@ tbody tr:hover {
     grid-column: auto;
   }
 }
+
+/* Access module: elements hidden by role must stay hidden even if a class sets display. */
+[data-requires-permission][hidden] {
+  display: none !important;
+}
