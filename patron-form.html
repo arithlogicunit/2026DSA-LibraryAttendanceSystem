@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+
+    <title>Patron Form | Library Visit Desk</title>
+
+    <link rel="stylesheet" href="ui-structure.css" />
+  </head>
+
+  <body data-requires-session="true" data-page="patron-form">
+    <main class="app-shell">
+      <a class="skip-link" href="#main-content">
+        Skip to main content
+      </a>
+
+      <div class="page-wrap">
+        <header class="masthead">
+          <div class="brand-mark">
+            <img
+              src="assets/NUD-LRC.jpg"
+              alt="School Logo"
+            />
+          </div>
+
+          <div class="system-name">
+            <p class="school-name">
+              National University - Dasmariñas
+            </p>
+
+            <h1>
+              Attendance Monitoring<br />
+              Library Management System
+            </h1>
+          </div>
+
+          <div class="header-actions">
+            <span
+              id="session-label"
+              class="session-label"
+              hidden
+            ></span>
+
+            <button
+              id="logout-button"
+              class="button button-header"
+              type="button"
+              hidden
+            >
+              Log out
+            </button>
+          </div>
+        </header>
+
+        <main
+          id="main-content"
+          class="page-stage"
+        >
+          <section
+            class="panel narrow"
+            aria-labelledby="form-title"
+          >
+            <div class="screen-heading">
+              <p class="eyebrow">Patron profiles</p>
+
+              <h2 id="form-title">
+                Add patron
+              </h2>
+            </div>
+
+            <form id="patron-form" novalidate>
+              <div class="field">
+                <label for="f-id">
+                  ID number
+                </label>
+
+                <input
+                  id="f-id"
+                  name="idNumber"
+                  autocomplete="off"
+                  required
+                />
+
+                <small id="id-hint">
+                  Letters, numbers and hyphens only, 2 to 20 characters (for example L5). Spaces are removed and letters become capitals.
+                </small>
+
+                <p
+                  id="e-id"
+                  class="validation-message"
+                  role="alert"
+                  hidden
+                ></p>
+              </div>
+
+              <div class="field">
+                <label for="f-name">
+                  Full name
+                </label>
+
+                <input
+                  id="f-name"
+                  name="fullName"
+                  autocomplete="off"
+                  maxlength="100"
+                  required
+                />
+
+                <p
+                  id="e-name"
+                  class="validation-message"
+                  role="alert"
+                  hidden
+                ></p>
+              </div>
+
+              <div class="field">
+                <label for="f-type">
+                  Type
+                </label>
+
+                <select
+                  id="f-type"
+                  name="type"
+                  autocomplete="off"
+                  required
+                >
+                  <option value="">Choose...</option>
+                  <option>Student</option>
+                  <option>Staff</option>
+                </select>
+
+                <p
+                  id="e-type"
+                  class="validation-message"
+                  role="alert"
+                  hidden
+                ></p>
+              </div>
+
+              <p
+                id="form-message"
+                class="validation-message"
+                role="alert"
+                hidden
+              ></p>
+
+              <div class="form-actions">
+                <a
+                  id="cancel-link"
+                  class="button button-secondary button-link"
+                  href="patrons-list.html"
+                >
+                  Cancel
+                </a>
+
+                <button
+                  id="f-save"
+                  class="button button-primary"
+                  type="submit"
+                >
+                  Save
+                </button>
+              </div>
+            </form>
+          </section>
+        </main>
+      </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+    <script src="supabase-config.js"></script>
+    <script src="auth.js"></script>
+    <script src="javascript-stuff.js"></script>
+    <script src="profile.js"></script>
+  </body>
+</html>

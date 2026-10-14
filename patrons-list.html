@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+
+    <title>Patrons | Library Visit Desk</title>
+
+    <link rel="stylesheet" href="ui-structure.css" />
+  </head>
+
+  <body data-requires-session="true" data-page="patron-list">
+    <main class="app-shell">
+      <a class="skip-link" href="#main-content">
+        Skip to main content
+      </a>
+
+      <div class="page-wrap">
+        <header class="masthead">
+          <div class="brand-mark">
+            <img
+              src="assets/NUD-LRC.jpg"
+              alt="School Logo"
+            />
+          </div>
+
+          <div class="system-name">
+            <p class="school-name">
+              National University - Dasmariñas
+            </p>
+
+            <h1>
+              Attendance Monitoring<br />
+              Library Management System
+            </h1>
+          </div>
+
+          <div class="header-actions">
+            <span
+              id="session-label"
+              class="session-label"
+              hidden
+            ></span>
+
+            <button
+              id="logout-button"
+              class="button button-header"
+              type="button"
+              hidden
+            >
+              Log out
+            </button>
+          </div>
+        </header>
+
+        <main
+          id="main-content"
+          class="page-stage"
+        >
+          <section
+            class="panel"
+            aria-labelledby="patrons-title"
+          >
+            <div class="screen-heading split-heading">
+              <div>
+                <p class="eyebrow">Patron profiles</p>
+
+                <h2 id="patrons-title">
+                  PATRONS
+                </h2>
+              </div>
+
+              <a
+                class="button button-dashboard button-link"
+                href="dashboard.html"
+              >
+                ← Dashboard
+              </a>
+            </div>
+
+            <div class="list-tools">
+              <div class="field">
+                <label for="patron-search">
+                  Search by name or ID number
+                </label>
+
+                <input
+                  id="patron-search"
+                  type="search"
+                  autocomplete="off"
+                />
+              </div>
+
+              <div class="field">
+                <label for="patron-sort">
+                  Sort by
+                </label>
+
+                <select id="patron-sort" autocomplete="off">
+                  <option value="">Choose...</option>
+                  <option value="id_number">ID number</option>
+                  <option value="full_name">Name</option>
+                  <option value="type">Type</option>
+                  <option value="status">Status</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="patron-order">
+                  Order
+                </label>
+
+                <select id="patron-order" autocomplete="off">
+                  <option value="">Choose...</option>
+                  <option value="asc">Ascending</option>
+                  <option value="desc">Descending</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Use the same table tag and classes as active.html -->
+            <table>
+              <thead>
+                <tr>
+                  <th>ID number</th>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+
+              <tbody id="patron-rows"></tbody>
+            </table>
+
+            <div
+              id="add-patron"
+              class="form-actions"
+              hidden
+            >
+              <a
+                class="button button-primary button-link"
+                href="patron-form.html"
+              >
+                Add patron
+              </a>
+            </div>
+          </section>
+        </main>
+      </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+    <script src="supabase-config.js"></script>
+    <script src="auth.js"></script>
+    <script src="javascript-stuff.js"></script>
+    <script src="profile.js"></script>
+  </body>
+</html>
