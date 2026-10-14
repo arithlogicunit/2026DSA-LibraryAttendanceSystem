@@ -1,21 +1,13 @@
-const directory = {
-  "L1": { name: "Vitto, Dag Johny Phol M.", type: "Student" },
-  "L2": { name: "Pineda, Christian James T.", type: "Student" },
-  "L3": { name: "Lolin, Angeline M.", type: "Student" },
-  "L4": { name: "Amongan, Shamille E.", type: "Student" },
-  "S1": { name: "Jordan Reyes", type: "Staff" }
-};
-
-
 // Patron lookup: a Map is a hash table.
-// Loading from Supabase once at startup is O(n) for n patrons.
+// Loading from Supabase at startup is O(n) for n patrons, and it is refreshed every minute.
 // patrons.get(id) / patrons.has(id) stay O(1) on average.
 const patrons = new Map();
 
 async function loadPatrons() {
-  patrons.clear();
   const { data, error } = await db.from("patrons").select("id_number, full_name, type, status");
   if (error) { console.error("Could not load patrons", error); return false; }
+  // Clear only after the fetch worked, so the Map is never empty while waiting for the network.
+  patrons.clear();
   data.forEach((p) => patrons.set(p.id_number, { name: p.full_name, type: p.type, status: p.status }));
   return true;
 }
@@ -105,7 +97,7 @@ function formatTime(iso) {
   const d = new Date(iso);
   if (isNaN(d)) return iso;
   return new Intl.DateTimeFormat("en-PH", { timeZone: "Asia/Manila", hour: "numeric", minute: "2-digit" }).format(d);
-} 
+}
 function goTo(page) { window.location.href = page; }
 
 function showScanResult(result) {
@@ -166,11 +158,11 @@ function manilaParts(date) {
 
 function isStale(visit) {
   const checkedIn = new Date(visit.checkinTime);
-  if (isNaN(checkedIn)) return true; 
+  if (isNaN(checkedIn)) return true;
   const then = manilaParts(checkedIn);
   const now = manilaParts(new Date());
-  if (now.day > then.day) return true; 
-  return now.hour >= CLOSING_HOUR && then.hour < CLOSING_HOUR; 
+  if (now.day > then.day) return true;
+  return now.hour >= CLOSING_HOUR && then.hour < CLOSING_HOUR;
 }
 
 
@@ -552,6 +544,8 @@ requireSession().then(async (allowed) => {
   renderLogTable();
 
     setInterval(async () => {
+    // Pick up patrons added or deactivated on the Profile pages (only on pages that need a login).
+    if (document.body.dataset.requiresSession === "true") await loadPatrons();
     if ((await autoCloseVisits()) > 0) {
       renderDashboard();
       renderActiveTable();
