@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Account Approvals | Library Visit Desk</title>
+    <link rel="stylesheet" href="ui-structure.css" />
+
+    <style>
+      .head-actions { display: flex; flex-wrap: wrap; gap: var(--space-1); align-self: flex-start; }
+      .row-actions { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+      .row-actions .button { min-height: 36px; padding: 6px var(--space-2); font-size: 0.85rem; }
+      .button-danger { color: #fff; background: var(--danger); border-color: var(--danger); }
+      .button-danger:hover { background: #7e2b27; }
+      td select { min-height: 38px; padding: 6px 40px 6px 10px; width: auto; min-width: 110px; }
+      .button:disabled, select:disabled { opacity: 0.55; cursor: not-allowed; }
+      .denied { max-width: 560px; text-align: center; }
+      .denied .button { margin-top: var(--space-3); }
+    </style>
+  </head>
+
+  <body>
+    <main class="app-shell">
+      <a class="skip-link" href="#main-content">Skip to main content</a>
+
+      <div class="page-wrap">
+        <header class="masthead">
+          <div class="brand-mark">
+            <img src="assets/NUD-LRC.jpg" alt="School Logo" />
+          </div>
+
+          <div class="system-name">
+            <p class="school-name">National University - Dasmariñas</p>
+            <h1>
+              Attendance Monitoring<br />
+              Library Management System
+            </h1>
+          </div>
+
+          <div class="header-actions">
+            <span id="session-label" class="session-label" hidden></span>
+            <button id="logout-button" class="button button-header" type="button" hidden>Log out</button>
+          </div>
+        </header>
+
+        <div id="main-content" class="page-stage">
+          <section id="checking" class="panel narrow" aria-live="polite">
+            <p class="eyebrow">Admin only</p>
+            <h2>Checking access…</h2>
+          </section>
+
+          <section id="denied" class="panel denied" hidden>
+            <p class="eyebrow">Admin only</p>
+            <h2>Admins only</h2>
+            <p class="form-note">Your account does not have admin access to account approvals.</p>
+            <a class="button button-primary button-link" href="dashboard.html">← Back to Dashboard</a>
+          </section>
+
+          <section id="approvals" class="panel table-panel" aria-labelledby="approvals-title" hidden>
+            <div class="screen-heading split-heading">
+              <div>
+                <p class="eyebrow">Admin only</p>
+                <h2 id="approvals-title">Account Approvals</h2>
+                <p id="approvals-description">Loading…</p>
+              </div>
+              <div class="head-actions">
+                <a class="button button-dashboard button-link" href="dashboard.html">← Dashboard</a>
+                <button id="refresh-button" class="button button-dashboard" type="button">Refresh</button>
+              </div>
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <caption class="sr-only">Staff accounts waiting for approval</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Staff ID</th>
+                    <th scope="col">Name</th>
+                    <th scope="col">Role to assign</th>
+                    <th scope="col">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="pending-body"></tbody>
+              </table>
+            </div>
+
+            <p id="pending-empty" class="empty-state" hidden>No accounts are waiting for approval.</p>
+
+            <aside class="privacy-note">
+              <strong>Reminder:</strong>
+              Approving sets the account to <em>active</em> with the role you choose. Rejected accounts cannot log in.
+              Only approve people you recognize as library staff.
+            </aside>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <div id="toast" class="toast" role="status" hidden></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+    <script src="supabase-config.js"></script>
+    <script src="auth.js"></script>
+    <script src="session-guard.js"></script>
+
+    <script>
+      const $ = (sel) => document.querySelector(sel);
+
+      // Roles an admin can assign on approval. Must match the values your database/RLS uses.
+      const ROLES = ["staff", "admin"];
+      const DEFAULT_ROLE = "staff";
+
+      let toastTimer;
+      function toast(message, isError) {
+        const el = $("#toast");
+        el.textContent = message;
+        el.classList.toggle("error", Boolean(isError));
+        el.hidden = false;
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => { el.hidden = true; }, 5000);
+      }
+
+      function updateCount(count) {
+        $("#approvals-description").textContent =
+          count === 0
+            ? "Nobody is waiting for approval."
+            : `${count} account${count === 1 ? "" : "s"} waiting for approval.`;
+        $("#pending-empty").hidden = count !== 0;
+      }
+
+      function handleFailure(error, fallback) {
+        if (SessionGuard.isSessionError(error)) return SessionGuard.endSession(SessionGuard.MESSAGES.expired);
+        toast(SessionGuard.friendlyMessage(error, fallback), true);
+      }
+
+      function renderPending(rows) {
+        const tbody = $("#pending-body");
+        tbody.innerHTML = "";
+
+        rows.forEach((row) => {
+          const tr = document.createElement("tr");
+
+          const idCell = document.createElement("td");
+          idCell.textContent = row.staff_id || "";
+
+          const nameCell = document.createElement("td");
+          nameCell.textContent = row.full_name || "";
+
+          const roleCell = document.createElement("td");
+          const select = document.createElement("select");
+          select.setAttribute("aria-label", `Role for ${row.staff_id}`);
+          ROLES.forEach((role) => {
+            const option = document.createElement("option");
+            option.value = role;
+            option.textContent = role;
+            if (role === DEFAULT_ROLE) option.selected = true;
+            select.append(option);
+          });
+          roleCell.append(select);
+
+          const actionCell = document.createElement("td");
+          const actions = document.createElement("div");
+          actions.className = "row-actions";
+
+          const approve = document.createElement("button");
+          approve.type = "button";
+          approve.className = "button button-primary";
+          approve.textContent = "Approve";
+
+          const reject = document.createElement("button");
+          reject.type = "button";
+          reject.className = "button button-danger";
+          reject.textContent = "Reject";
+
+          const setBusy = (busy) => { approve.disabled = busy; reject.disabled = busy; select.disabled = busy; };
+
+          approve.addEventListener("click", () => review(row, tr, "approve", select.value, setBusy));
+          reject.addEventListener("click", () => review(row, tr, "reject", null, setBusy));
+
+          actions.append(approve, reject);
+          actionCell.append(actions);
+          tr.append(idCell, nameCell, roleCell, actionCell);
+          tbody.append(tr);
+        });
+
+        updateCount(rows.length);
+      }
+
+      async function loadPending() {
+        $("#approvals-description").textContent = "Loading…";
+        try {
+          const { data, error } = await db
+            .from("profiles")
+            .select("id, staff_id, full_name, role, status")
+            .eq("status", "pending")
+            .order("staff_id", { ascending: true });
+
+          if (error) {
+            $("#approvals-description").textContent = "Could not load the list.";
+            return handleFailure(error, "Could not load pending accounts. Please try again.");
+          }
+          renderPending(data);
+        } catch (err) {
+          $("#approvals-description").textContent = "Could not load the list.";
+          handleFailure(err, "Could not load pending accounts. Please try again.");
+        }
+      }
+
+      async function review(row, tr, action, role, setBusy) {
+        const label = `${row.full_name || row.staff_id} (${row.staff_id})`;
+        if (action === "reject" && !confirm(`Reject the account of ${label}? They will not be able to log in.`)) return;
+        if (action === "approve" && !confirm(`Approve ${label} as "${role}"?`)) return;
+
+        setBusy(true);
+        const changes = action === "approve" ? { status: "active", role } : { status: "rejected" };
+
+        try {
+          // .eq("status","pending") makes sure we never overwrite an account someone else already handled.
+          const { data, error } = await db
+            .from("profiles")
+            .update(changes)
+            .eq("id", row.id)
+            .eq("status", "pending")
+            .select("id");
+
+          if (error) {
+            setBusy(false);
+            return handleFailure(error, "Could not save the change. Please try again.");
+          }
+
+          // RLS blocks silently: no error, but also no rows changed.
+          if (!data || data.length === 0) {
+            toast("Nothing was changed. The account was already handled, or you do not have permission.", true);
+            await loadPending();
+            return;
+          }
+
+          tr.remove();
+          updateCount($("#pending-body").children.length);
+          toast(action === "approve" ? `${label} approved as ${role}.` : `${label} rejected.`);
+        } catch (err) {
+          setBusy(false);
+          handleFailure(err, "Could not save the change. Please try again.");
+        }
+      }
+
+      (async function start() {
+        const guard = await SessionGuard.requireStaff({ adminOnly: true });
+        if (!guard) return;
+
+        $("#session-label").textContent = `Signed in: ${guard.profile.staff_id}`;
+        $("#session-label").hidden = false;
+        $("#logout-button").hidden = false;
+        $("#logout-button").addEventListener("click", () => SessionGuard.logout("welcome.html"));
+
+        $("#checking").hidden = true;
+        if (guard.denied) { $("#denied").hidden = false; return; }
+
+        $("#approvals").hidden = false;
+        $("#refresh-button").addEventListener("click", loadPending);
+        await loadPending();
+      })();
+    </script>
+  </body>
+</html>

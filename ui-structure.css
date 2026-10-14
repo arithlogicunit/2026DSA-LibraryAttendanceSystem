@@ -777,3 +777,7 @@ tbody tr:hover {
   color: var(--danger);
   font-weight: 750;
 }
+/* Access module: elements hidden by role must stay hidden even if a class sets display. */
+[data-requires-permission][hidden] {
+  display: none !important;
+}

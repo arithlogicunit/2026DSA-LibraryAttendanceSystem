@@ -126,6 +126,7 @@ function addLog(action, visit, by) {
 
 // Staff action: check someone out who forgot to scan out. Saved to the database as a check_out.
 async function forceCheckOut(id) {
+  if (typeof can === "function" && !can(state.staff?.role, "force_checkout")) return;
   const visit = state.visits.get(id);
   if (!visit) return;
   if (!confirm(`Force check-out ${visit.name}?`)) return;
@@ -190,6 +191,7 @@ async function autoCloseVisits() {
 // Undo the most recent database entry by adding a "correction" row (rows are never deleted).
 // Then the visits Map is rebuilt from the logs, where a correction reverses the event before it.
 async function undoLastEntry() {
+  if (typeof can === "function" && !can(state.staff?.role, "undo_entry")) return;
   const { data, error } = await db
     .from("attendance_logs")
     .select("id_number, event_type, event_time")
@@ -356,8 +358,12 @@ async function requireSession() {
 
   if (!profile || profile.status !== "active") return reject();
 
-   state.staff = { id: profile.staff_id, role: profile.role, uid: data.session.user.id };
+  // The role always comes from the database on every page load, never from localStorage.
+  state.staff = { id: profile.staff_id, role: profile.role, uid: data.session.user.id };
   saveState();
+
+  // Access module: block pages this role may not open (see access.js).
+  if (typeof enforcePageAccess === "function" && !enforcePageAccess(profile.role)) return false;
   return true;
 }
 
@@ -385,8 +391,10 @@ function renderActiveTable() {
   const description = document.querySelector("#active-description");
   if (!tbody) return;
   tbody.innerHTML = "";
+  const mayForceCheckOut = typeof can !== "function" || can(state.staff?.role, "force_checkout");
   state.visits.forEach((visit) => {
     addRow(tbody, [visit.id, visit.name, formatTime(visit.checkinTime)]);
+    if (!mayForceCheckOut) return;
 
     const td = document.createElement("td");
     const btn = document.createElement("button");
@@ -526,6 +534,7 @@ requireSession().then(async (allowed) => {
   }
 
   setupHeader();
+  if (typeof applyRoleUI === "function" && state.staff) applyRoleUI(state.staff.role);
   setupLogin();
   setupScan();
   setupUndo();
