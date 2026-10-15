@@ -143,27 +143,6 @@
 
               <a
                 class="action-card"
-                href="logs.html"
-                data-requires-permission="view_reports"
-              >
-                <span
-                  class="action-icon"
-                  aria-hidden="true"
-                >
-                  ≡
-                </span>
-
-                <span>
-                  <strong>Report / Logs</strong>
-
-                  <small>
-                    Review today’s visit history.
-                  </small>
-                </span>
-              </a>
-
-              <a
-                class="action-card"
                 href="patrons-list.html"
               >
                 <span
@@ -228,7 +207,7 @@
         const { data } = await db.auth.getSession();
         if (!data.session) return;
         const { data: p } = await db.from("profiles").select("role").eq("id", data.session.user.id).single();
-        if (p && String(p.role).toLowerCase().includes("admin")) {
+        if (p && p.role === "admin") {
           document.querySelectorAll("[data-admin-only]").forEach((el) => (el.style.display = ""));
         }
       })();

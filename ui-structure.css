@@ -638,6 +638,34 @@ tbody tr:hover {
 }
 
 /* =========================
+   EXIT LOCK DIALOG (in-out.html)
+   ========================= */
+
+.lock-dialog {
+  width: min(calc(100% - 32px), 460px);
+  padding: var(--space-4);
+  color: var(--ink);
+  background: var(--surface);
+  border: 0;
+  border-top: 4px solid var(--gold);
+  border-radius: 8px;
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.28);
+}
+
+.lock-dialog::backdrop {
+  background: rgba(8, 26, 44, 0.85);
+}
+
+.lock-dialog h2 {
+  margin-bottom: var(--space-1);
+  font-size: 1.4rem;
+}
+
+.lock-dialog .form-actions {
+  margin-top: var(--space-3);
+}
+
+/* =========================
    ACCESSIBILITY
    ========================= */
 

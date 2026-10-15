@@ -1,10 +1,24 @@
+// Supabase returns at most 1000 rows per request, so read page by page until a short page comes back.
+// makeQuery() must build a new query with a stable order each time (one call per page).
+async function fetchAllRows(makeQuery) {
+  const PAGE = 1000;
+  let all = [];
+  for (let start = 0; ; start += PAGE) {
+    const { data, error } = await makeQuery().range(start, start + PAGE - 1);
+    if (error) return { data: null, error };
+    all = all.concat(data);
+    if (data.length < PAGE) return { data: all, error: null };
+  }
+}
+
 // Patron lookup: a Map is a hash table.
 // Loading from Supabase at startup is O(n) for n patrons, and it is refreshed every minute.
 // patrons.get(id) / patrons.has(id) stay O(1) on average.
 const patrons = new Map();
 
 async function loadPatrons() {
-  const { data, error } = await db.from("patrons").select("id_number, full_name, type, status");
+  const { data, error } = await fetchAllRows(() =>
+    db.from("patrons").select("id_number, full_name, type, status").order("id_number", { ascending: true }));
   if (error) { console.error("Could not load patrons", error); return false; }
   // Clear only after the fetch worked, so the Map is never empty while waiting for the network.
   patrons.clear();
@@ -12,54 +26,41 @@ async function loadPatrons() {
   return true;
 }
 
-// Rebuild "currently in" from the logs. One pass over the rows: O(L) for L log rows.
-// `before` remembers each person's state before their latest event, so a correction can reverse it.
+// Rebuild "currently in" from the open_visits view: one row per person whose latest event is a
+// check-in, however long ago (see supabase/migrations/20261016_open_visits_view.sql). So a visit left
+// open over a weekend is still found, and autoCloseVisits can close it. O(v) for v open visits.
+let visitsLoaded = false;   // true once state.visits came from the database on this page
+
 async function loadVisits() {
-  const since = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
-  const { data, error } = await db
-    .from("attendance_logs")
-    .select("id_number, event_type, event_time")
-    .gte("event_time", since)
-    .order("event_time", { ascending: true });
+  const { data, error } = await fetchAllRows(() =>
+    db.from("open_visits").select("id_number, checkin_time").order("id_number", { ascending: true }));
   if (error) { console.error("Could not load visits", error); return false; }
 
   const visits = new Map();
-  const before = new Map();
-
   for (const row of data) {
     const id = row.id_number;
-
-    if (row.event_type === "correction") {
-      if (before.has(id)) {
-        const previous = before.get(id);
-        if (previous) visits.set(id, previous); else visits.delete(id);
-        before.delete(id);
-      }
-      continue;
-    }
-
-    before.set(id, visits.get(id) || null);
-    if (row.event_type === "check_in") {
-      const patron = patrons.get(id);
-      visits.set(id, { id, name: patron ? patron.name : id, type: patron ? patron.type : "", checkinTime: row.event_time });
-    } else {
-      visits.delete(id);
-    }
+    const patron = patrons.get(id);
+    visits.set(id, { id, name: patron ? patron.name : id, type: patron ? patron.type : "", checkinTime: row.checkin_time });
   }
 
   state.visits = visits;
+  visitsLoaded = true;
   saveState();
   return true;
 }
 
 // Save one event to the database. recorded_by must be the signed-in user's own ID (RLS rule).
-async function saveEvent(eventType, id, eventTime) {
-  const { error } = await db.from("attendance_logs").insert({
+// closeReason ("auto" or "force") marks a check-out the visitor did not scan themselves,
+// so the report can leave it out (see supabase/migrations/20261016_attendance_close_reason.sql).
+async function saveEvent(eventType, id, eventTime, closeReason) {
+  const row = {
     id_number: id,
     event_type: eventType,
     event_time: eventTime || nowISO(),
     recorded_by: state.staff?.uid
-  });
+  };
+  if (closeReason) row.close_reason = closeReason;
+  const { error } = await db.from("attendance_logs").insert(row);
   if (error) { console.error("Could not save event", error); return false; }
   return true;
 }
@@ -131,7 +132,7 @@ async function forceCheckOut(id) {
   if (!visit) return;
   if (!confirm(`Force check-out ${visit.name}?`)) return;
 
-  if (!(await saveEvent("check_out", id))) {
+  if (!(await saveEvent("check_out", id, null, "force"))) {
     alert("Could not save the check-out to the database. Please try again.");
     return;
   }
@@ -144,15 +145,20 @@ async function forceCheckOut(id) {
 }
 
 
-const CLOSING_HOUR = 20;
+// Library closing time (Manila). Visits still open at closing time are checked out automatically.
+const CLOSING_HOUR = 19;
+const CLOSING_MINUTE = 10;
+const CLOSING_MINUTES = CLOSING_HOUR * 60 + CLOSING_MINUTE;
 
 
 function manilaParts(date) {
   const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23"
+    timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23"
   }).formatToParts(date);
   const get = (type) => parts.find((p) => p.type === type).value;
-  return { day: `${get("year")}-${get("month")}-${get("day")}`, hour: Number(get("hour")) };
+  const hour = Number(get("hour"));
+  return { day: `${get("year")}-${get("month")}-${get("day")}`, hour, minutes: hour * 60 + Number(get("minute")) };
 }
 
 
@@ -162,21 +168,35 @@ function isStale(visit) {
   const then = manilaParts(checkedIn);
   const now = manilaParts(new Date());
   if (now.day > then.day) return true;
-  return now.hour >= CLOSING_HOUR && then.hour < CLOSING_HOUR;
+  return now.minutes >= CLOSING_MINUTES && then.minutes < CLOSING_MINUTES;
+}
+
+// The time an auto check-out is saved with: closing time on the day of the visit (Manila is UTC+8),
+// so a visit closed the next morning still ends on the day it started.
+// Someone who checked in after closing time is checked out one second after their check-in.
+function autoCloseTime(visit) {
+  const checkedIn = new Date(visit.checkinTime);
+  if (isNaN(checkedIn)) return nowISO();
+  const hh = String(CLOSING_HOUR).padStart(2, "0");
+  const mm = String(CLOSING_MINUTE).padStart(2, "0");
+  const closing = new Date(`${manilaParts(checkedIn).day}T${hh}:${mm}:00+08:00`);
+  return (closing > checkedIn ? closing : new Date(checkedIn.getTime() + 1000)).toISOString();
 }
 
 
 // Check out every stale visit and save each one to the database. O(v) for v active visits.
+// Only once state.visits was loaded from the database on this page; the saved copy may be out of date.
 let autoClosing = false;
 
 async function autoCloseVisits() {
+  if (!visitsLoaded) return 0;
   if (autoClosing || !state.staff?.uid) return 0;
   autoClosing = true;
   let closed = 0;
 
   for (const [id, visit] of [...state.visits]) {
     if (!isStale(visit)) continue;
-    if (await saveEvent("check_out", id)) {
+    if (await saveEvent("check_out", id, autoCloseTime(visit), "auto")) {
       state.visits.delete(id);
       addLog("Auto checked out", visit, state.staff.id);
       closed++;
@@ -187,68 +207,6 @@ async function autoCloseVisits() {
   autoClosing = false;
   return closed;
 }
-
-// Undo the most recent database entry by adding a "correction" row (rows are never deleted).
-// Then the visits Map is rebuilt from the logs, where a correction reverses the event before it.
-async function undoLastEntry() {
-  if (typeof can === "function" && !can(state.staff?.role, "undo_entry")) return;
-  const { data, error } = await db
-    .from("attendance_logs")
-    .select("id_number, event_type, event_time")
-    .order("event_time", { ascending: false })
-    .limit(1);
-
-  if (error) {
-    showScanResult({
-      success: false,
-      eyebrow: "Not undone",
-      title: "Could not read the last entry",
-      message: "Check the connection and try again."
-    });
-    return;
-  }
-
-  const last = data[0];
-  if (!last || last.event_type === "correction") {
-    showScanResult({
-      success: false,
-      eyebrow: "Nothing to undo",
-      title: "No entry to undo",
-      message: "There is no recent entry to reverse, or the last entry is already a correction."
-    });
-    return;
-  }
-
-  const person = patrons.get(last.id_number);
-  const name = person ? person.name : last.id_number;
-  const action = last.event_type === "check_in" ? "Checked in" : "Checked out";
-  if (!confirm(`Undo "${action}" for ${name}?`)) return;
-
-  if (!(await saveEvent("correction", last.id_number))) {
-    showScanResult({
-      success: false,
-      eyebrow: "Not undone",
-      title: "Could not save the correction",
-      message: "The correction was not saved to the database. Please try again."
-    });
-    return;
-  }
-
-  await loadVisits();
-  addLog(`Correction: ${action.toLowerCase()} undone`, {
-    id: last.id_number, name, type: person ? person.type : "", checkinTime: last.event_time
-  });
-  saveState();
-  delete lastScan[last.id_number];
-
-  showScanResult({
-    success: true,
-    eyebrow: "Correction recorded",
-    title: "Last entry undone",
-    message: `${name}: "${action}" was reversed. The correction was saved to the database.`
-  });
-}
-
 
 // Check-in / check-out for one scanned ID. The database is written first; the screen updates only if that worked.
 // patrons.get, visits.has, visits.get, visits.set and visits.delete are O(1) on average.
@@ -319,17 +277,21 @@ function setupHeader() {
   const sessionLabel = document.querySelector("#session-label");
   const logoutButton = document.querySelector("#logout-button");
   if (sessionLabel && state.staff) {
-    sessionLabel.textContent = `Signed in: ${state.staff.id}`;
+    const role = String(state.staff.role || "");
+    const roleText = role ? ` (${role.charAt(0).toUpperCase()}${role.slice(1)})` : "";
+    sessionLabel.textContent = `Signed in: ${state.staff.id}${roleText}`;
     sessionLabel.hidden = false;
   }
   if (logoutButton && state.staff) {
     logoutButton.hidden = false;
-        logoutButton.addEventListener("click", async () => {
+    const logout = async () => {
       if (typeof db !== "undefined") await db.auth.signOut();
       state.staff = null;
       saveState();
       goTo("welcome.html");
-    });
+    };
+    // On a locked page (in-out.html), logging out also needs the password.
+    logoutButton.addEventListener("click", () => (isExitLocked() ? askToLeave(logout) : logout()));
   }
 }
 
@@ -455,6 +417,16 @@ function setupLogin() {
   const error = document.querySelector("#login-error");
   const button = form.querySelector('button[type="submit"]');
 
+  // session-guard.js leaves a reason here when it ends a session (expired, not active, signed out elsewhere).
+  try {
+    const notice = sessionStorage.getItem("sessionNotice");
+    if (notice) {
+      sessionStorage.removeItem("sessionNotice");
+      error.textContent = notice;
+      error.hidden = false;
+    }
+  } catch { /* ignore */ }
+
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     error.hidden = true;
@@ -516,13 +488,92 @@ function setupScan() {
   });
 }
 
+// Exit lock (in-out.html, <body data-exit-lock="true">): leaving the scan page needs the
+// signed-in staff member's password, so a visitor using the desk cannot open staff pages.
+function isExitLocked() {
+  return document.body.dataset.exitLock === "true";
+}
 
-function setupUndo() {
-  const button = document.querySelector("#undo-button");
-  if (!button) return;
-  button.addEventListener("click", () => {
-    document.querySelector("#scan-error").hidden = true;
-    undoLastEntry();
+let afterUnlock = null;   // what to do once the password is confirmed
+
+function askToLeave(onUnlock) {
+  const dialog = document.querySelector("#exit-dialog");
+  if (!dialog || dialog.open) return;
+  afterUnlock = onUnlock;
+  document.querySelector("#exit-form").reset();
+  document.querySelector("#exit-error").hidden = true;
+  document.querySelector("#exit-description").textContent =
+    `Enter the password for ${state.staff?.id || "the signed-in account"} to leave the check-in page.`;
+  dialog.showModal();
+  document.querySelector("#exit-password").focus();
+}
+
+// Same check as change-password.html: signing in again only works with the right password,
+// and a wrong password leaves the current session as it is.
+async function checkStaffPassword(password) {
+  const { data } = await db.auth.getSession();
+  const email = data.session?.user?.email;
+  if (!email) return { ok: false, ended: true };
+  const { error } = await db.auth.signInWithPassword({ email, password });
+  if (!error) return { ok: true };
+  const offline = navigator.onLine === false || error.name === "AuthRetryableFetchError" || error.status === 0;
+  return { ok: false, message: offline ? "Can't reach the server. Check the connection and try again." : "Wrong password." };
+}
+
+function setupExitLock() {
+  if (!isExitLocked()) return;
+  const dialog = document.querySelector("#exit-dialog");
+  const form = document.querySelector("#exit-form");
+  const password = document.querySelector("#exit-password");
+  const error = document.querySelector("#exit-error");
+  const confirmButton = document.querySelector("#exit-confirm");
+
+  document.querySelector("#exit-button").addEventListener("click", () => askToLeave(() => goTo("dashboard.html")));
+  document.querySelector("#exit-cancel").addEventListener("click", () => dialog.close());
+  dialog.addEventListener("close", () => {
+    afterUnlock = null;
+    document.querySelector("#visit-id").focus();
+  });
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    error.hidden = true;
+    if (!password.value) {
+      error.textContent = "Enter the password.";
+      error.hidden = false;
+      return;
+    }
+
+    confirmButton.disabled = true;
+    const result = await checkStaffPassword(password.value);
+    confirmButton.disabled = false;
+
+    if (result.ended) { goTo("login.html"); return; }
+    if (!result.ok) {
+      error.textContent = result.message;
+      error.hidden = false;
+      password.value = "";
+      password.focus();
+      return;
+    }
+    const next = afterUnlock;
+    dialog.close();
+    if (next) next();
+  });
+
+  // Back button: keep one extra history entry so Back opens the password prompt instead of leaving.
+  // Browsers only keep entries added after the person has clicked or typed, so add it on interaction.
+  let armed = false;
+  const arm = () => {
+    if (armed) return;
+    armed = true;
+    history.pushState({ exitLock: true }, "", location.href);
+  };
+  window.addEventListener("pointerdown", arm);
+  window.addEventListener("keydown", arm);
+  window.addEventListener("popstate", () => {
+    armed = false;
+    askToLeave(() => goTo("dashboard.html"));
   });
 }
 
@@ -537,11 +588,10 @@ requireSession().then(async (allowed) => {
   if (typeof applyRoleUI === "function" && state.staff) applyRoleUI(state.staff.role);
   setupLogin();
   setupScan();
-  setupUndo();
+  setupExitLock();
   await autoCloseVisits();
   renderDashboard();
   renderActiveTable();
-  renderLogTable();
 
     setInterval(async () => {
     // Pick up patrons added or deactivated on the Profile pages (only on pages that need a login).

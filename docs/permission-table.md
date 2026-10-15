@@ -6,7 +6,6 @@ Two roles, stored in `profiles.role`. An account must also have `profiles.status
 | Action (key in `access.js`)        | Admin | Staff | Enforced by |
 |------------------------------------|:-----:|:-----:|-------------|
 | Type-ID check-in / check-out (`check_in_out`) | yes | yes | Screen guard; database: active staff may insert logs |
-| Undo last entry (`undo_entry`)     | yes   | yes   | Screen guard; logs are append-only (a correction row) |
 | Force check-out (`force_checkout`) | yes   | yes   | Screen guard; database: active staff may insert logs |
 | Currently-In list (`view_currently_in`) | yes | yes | Screen guard; database: active staff may read logs |
 | View reports / logs (`view_reports`) | yes | yes   | Screen guard; database: active staff may read logs |

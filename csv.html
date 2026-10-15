@@ -12,10 +12,7 @@
      
       .analytics-panel { max-width: 1000px; }
 
-      .head-actions { display: flex; flex-wrap: wrap; gap: var(--space-1); align-self: flex-start; }
-      .button-pdf { color: #fff; background: var(--blue); border: 1px solid var(--blue); border-radius: 4px; min-height: 36px; padding: 6px var(--space-2); font-size: 0.84rem; font-weight: 800; white-space: nowrap; }
-      .button-pdf:hover { background: var(--blue-hover); }
-      .button-pdf:disabled { opacity: 0.55; cursor: not-allowed; }
+      .button:disabled { opacity: 0.55; cursor: not-allowed; }
 
       .an-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: var(--space-2); align-items: end; margin-bottom: var(--space-3); padding: var(--space-2); background: var(--slate); border: 1px solid #d1dbe4; border-radius: 6px; }
       .an-controls .field { margin: 0; }
@@ -63,11 +60,6 @@
 
       .denied { max-width: 560px; text-align: center; }
       .denied .button { margin-top: var(--space-3); }
-
-      @media (max-width: 700px) {
-        .head-actions { width: 100%; }
-        .head-actions .button, .head-actions button { flex: 1; }
-      }
     </style>
   </head>
 
@@ -108,7 +100,7 @@
             <p class="eyebrow">Report / Logs</p>
             <h2>Admins only</h2>
             <p class="form-note">Your account does not have admin access to the attendance dashboard.</p>
-            <a class="button button-primary button-link" href="dashboard.html">← Back to Dashboard</a>
+            <a class="button button-primary button-link" href="dashboard.html"><span aria-hidden="true">←</span>&nbsp;Back to Dashboard</a>
           </section>
 
           
@@ -120,10 +112,7 @@
                 <p id="module-date"></p>
               </div>
 
-              <div class="head-actions">
-                <a class="button button-dashboard button-link" href="dashboard.html">← Dashboard</a>
-                <button id="pdf-button" class="button-pdf" type="button" disabled>Download PDF</button>
-              </div>
+              <a class="button button-dashboard button-link" href="dashboard.html"><span aria-hidden="true">←</span>&nbsp;Dashboard</a>
             </div>
 
             <div class="an-controls">
@@ -246,6 +235,10 @@
               <strong>Privacy reminder:</strong>
               This report contains visitor details. Download and share it only with authorized staff.
             </aside>
+
+            <div class="form-actions">
+              <button id="pdf-button" class="button button-primary" type="button" disabled>Download PDF</button>
+            </div>
           </section>
         </main>
       </div>
@@ -333,8 +326,9 @@
 
       
 
+      // Exact match, same rule as access.js and public.is_admin() in the database.
       function isAdminRole(role) {
-        return String(role || "").toLowerCase().includes("admin");
+        return role === "admin";
       }
 
       function showOnly(id) {
@@ -388,9 +382,10 @@
      
 
       async function loadPatrons() {
-        mod.patrons.clear();
         const { data, error } = await db.from("patrons").select("id_number, full_name, type, status");
         if (error) { console.error("Could not load patrons", error); return false; }
+        // Clear only after the fetch worked, so a failed reload keeps the names and types already loaded.
+        mod.patrons.clear();
         data.forEach((p) => mod.patrons.set(p.id_number, { name: p.full_name, type: p.type, status: p.status }));
         return true;
       }
@@ -404,7 +399,7 @@
         for (let start = 0; ; start += PAGE) {
           const { data, error } = await db
             .from("attendance_logs")
-            .select("id_number, event_type, event_time")
+            .select("id_number, event_type, event_time, close_reason")
             .gte("event_time", from)
             .lt("event_time", to)
             .order("event_time", { ascending: true })
@@ -431,7 +426,8 @@
           const ms = new Date(row.event_time).getTime();
           if (isNaN(ms)) continue;
           const p = manilaParts(ms);
-          stack.push({ id, type: row.event_type, ms, day: p.day, month: p.month, hour: p.hour });
+          // reason: "auto" / "force" for check-outs the visitor did not scan; null for real scans.
+          stack.push({ id, type: row.event_type, reason: row.close_reason || null, ms, day: p.day, month: p.month, hour: p.hour });
         }
         return [...stacks.values()].flat();
       }
@@ -550,6 +546,10 @@
         });
       }
 
+      function skippedText(count) {
+        return `${count} automatic or forced check-out${count === 1 ? " is" : "s are"} not counted.`;
+      }
+
       function renderPeaks(report) {
         const { peakIn, peakOut } = report;
         $("#peak-in-hour").textContent = peakIn ? hourRange(peakIn.hour) : "No data";
@@ -557,7 +557,8 @@
         $("#peak-out-hour").textContent = peakOut ? hourRange(peakOut.hour) : "No data";
         $("#peak-out-count").textContent = peakOut ? `${peakOut.count} check-out${peakOut.count === 1 ? "" : "s"}` : "";
         $("#peak-caption").textContent =
-          `Busiest hours for ${report.periodLabel} — ${report.typeLabel.toLowerCase()} (Philippine time).`;
+          `Busiest hours for ${report.periodLabel} — ${report.typeLabel.toLowerCase()} (Philippine time).` +
+          (report.skipped ? ` ${skippedText(report.skipped)}` : "");
 
         const chart = $("#hour-chart");
         chart.innerHTML = "";
@@ -618,11 +619,18 @@
 
         const selected = { day: date, month: date.slice(0, 7), year: Number(date.slice(0, 4)) };
 
-        const filtered = typeSel === "all" ? yearEvents : yearEvents.filter((e) => patronType(e.id) === typeSel);
+        const byType = typeSel === "all" ? yearEvents : yearEvents.filter((e) => patronType(e.id) === typeSel);
+        const inPeriod = (e) => (view === "day" ? e.day === selected.day : view === "month" ? e.month === selected.month : true);
+
+        // Auto and forced check-outs carry the time the visit was closed, not when the visitor left,
+        // so they are left out of every count, the peak hours and the visitor totals.
+        const filtered = byType.filter((e) => !e.reason);
+        const skipped = byType.filter((e) => e.reason && inPeriod(e)).length;
+
         const dayEvents = filtered.filter((e) => e.day === selected.day);
         const monthEvents = filtered.filter((e) => e.month === selected.month);
 
-        const periodEvents = view === "day" ? dayEvents : view === "month" ? monthEvents : filtered;
+        const periodEvents = filtered.filter(inPeriod);
         const periodLabel = view === "day" ? longDate(selected.day) : view === "month" ? monthName(selected.month) : `Year ${selected.year}`;
         const typeLabel = typeSel === "all" ? "All visitors" : typeSel === "student" ? "Students only" : "Staff only";
 
@@ -631,7 +639,7 @@
         const d = summarize(dayEvents), m = summarize(monthEvents), y = summarize(filtered);
 
         return {
-          view, typeLabel, periodLabel, selected, ins, outs,
+          view, typeLabel, periodLabel, selected, ins, outs, skipped,
           cards: [
             { period: "Day", label: longDate(selected.day), ...d },
             { period: "Month", label: monthName(selected.month), ...m },
@@ -665,9 +673,12 @@
         const year = Number(date.slice(0, 4));
         $("#module-date").textContent = `${longDate(todayManila())} · all times are Philippine time`;
 
+        // Refresh also reloads the patron list, so patrons added or changed since the page opened show up.
+        let patronsOk = true;
         if (force || !mod.yearCache[year]) {
           setStatus("Loading attendance data…");
           $("#pdf-button").disabled = true;
+          if (force) patronsOk = await loadPatrons();
           try {
             await loadYear(year, force);
           } catch (err) {
@@ -678,7 +689,8 @@
         }
 
         const total = mod.yearCache[year].length;
-        setStatus(`Loaded ${total.toLocaleString()} attendance event${total === 1 ? "" : "s"} for ${year}. Updated ${formatDateTime(Date.now())}.`);
+        const patronNote = patronsOk ? "" : " The patron list could not be refreshed, so names and types may be out of date.";
+        setStatus(`Loaded ${total.toLocaleString()} attendance event${total === 1 ? "" : "s"} for ${year}. Updated ${formatDateTime(Date.now())}.${patronNote}`, !patronsOk);
         render();
       }
 
@@ -753,6 +765,7 @@
           `Visitors: ${r.typeLabel}`,
           `Generated: ${r.generatedAt} (Philippine time) by ${mod.staff ? mod.staff.id : "Admin"}`
         ];
+        if (r.skipped) details.push(skippedText(r.skipped));
         details.forEach((line, i) => doc.text(line, M, 38 + i * 5));
 
         // Day / month / year totals
@@ -861,8 +874,6 @@
         $("#refresh-button").addEventListener("click", () => refresh(true));
         $("#pdf-button").addEventListener("click", downloadPdf);
 
-        setStatus("Loading attendance data…");
-        await loadPatrons();
         await refresh(true);
       })();
     </script>
