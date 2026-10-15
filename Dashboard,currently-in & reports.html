@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Library Attendance – Dashboard</title>
+<style>
+:root{--ink:#1d2b4f;--blue:#2f5597;--sea:#1f8a8a;--paper:#f7f8fa;--line:#d9dde5;--muted:#5d6678;--warn:#b3261e}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Segoe UI",system-ui,sans-serif;background:var(--paper);color:var(--ink)}
+header{background:var(--ink);color:#fff;padding:14px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+header h1{font-size:1.15rem;margin:0}
+#mode{font-size:.8rem;padding:3px 10px;border-radius:99px;background:#ffffff22}
+nav{display:flex;gap:4px;padding:12px 24px 0;border-bottom:1px solid var(--line);background:#fff}
+nav button{border:0;background:none;padding:10px 18px;font-size:.95rem;cursor:pointer;color:var(--muted);border-bottom:3px solid transparent}
+nav button.on{color:var(--ink);border-color:var(--blue);font-weight:600}
+nav button:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--sea);outline-offset:2px}
+main{padding:24px;max-width:1000px;margin:auto}
+section{display:none}section.on{display:block}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:24px}
+.card{background:#fff;border:1px solid var(--line);border-radius:6px;padding:16px}
+.card b{display:block;font-size:2rem;color:var(--blue)}
+.card span{color:var(--muted);font-size:.9rem}
+.card.big{border-left:5px solid var(--sea)}
+h2{font-size:1.05rem;margin:0 0 12px}
+.panel{background:#fff;border:1px solid var(--line);border-radius:6px;padding:16px;margin-bottom:24px}
+#chart{display:flex;align-items:flex-end;gap:6px;height:160px;border-bottom:1px solid var(--line)}
+#chart div{flex:1;background:var(--blue);min-height:2px;position:relative;border-radius:3px 3px 0 0}
+#chart div:hover::after{content:attr(data-tip);position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;font-size:.75rem;padding:2px 6px;border-radius:3px;white-space:nowrap}
+#labels{display:flex;gap:6px;font-size:.72rem;color:var(--muted)}#labels span{flex:1;text-align:center}
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px}
+label{font-size:.85rem;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+input{padding:8px 10px;border:1px solid var(--line);border-radius:4px;font:inherit}
+.btn{padding:9px 16px;border:0;border-radius:4px;background:var(--blue);color:#fff;cursor:pointer;font:inherit}
+.btn.alt{background:#fff;color:var(--ink);border:1px solid var(--line)}
+table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line)}
+th{background:var(--blue);color:#fff;text-align:left;padding:9px 12px;font-size:.88rem}
+td{padding:9px 12px;border-top:1px solid var(--line);font-size:.92rem}
+.empty{padding:28px;text-align:center;color:var(--muted)}
+.long{color:var(--warn);font-weight:600}
+.wrap{overflow-x:auto}
+#err{display:none;background:#fdecea;color:var(--warn);padding:10px 24px}
+@media print{header,nav,.bar,#err{display:none}section{display:none!important}#reports{display:block!important}}
+</style>
+</head>
+<body>
+<header><h1>Library Attendance – Dashboard</h1><span id="mode"></span></header>
+<div id="err"></div>
+<nav>
+  <button class="on" data-tab="dash">Dashboard</button>
+  <button data-tab="inside">Currently In</button>
+  <button data-tab="reports">Reports</button>
+</nav>
+<main>
+  <section id="dash" class="on">
+    <div class="cards">
+      <div class="card big"><b id="c-inside">–</b><span>Inside right now</span></div>
+      <div class="card"><b id="c-today">–</b><span>Check-ins today</span></div>
+      <div class="card"><b id="c-avg">–</b><span>Average stay</span></div>
+      <div class="card"><b id="c-peak">–</b><span>Busiest hour today</span></div>
+    </div>
+    <div class="panel"><h2>Check-ins per hour (today)</h2><div id="chart"></div><div id="labels"></div></div>
+  </section>
+
+  <section id="inside">
+    <div class="bar">
+      <label>Search name or student ID<input id="q" placeholder="e.g. 2023-0001"></label>
+      <button class="btn alt" id="refresh">Refresh</button>
+    </div>
+    <div class="wrap"><table>
+      <thead><tr><th>Student ID</th><th>Name</th><th>Course</th><th>Time in</th><th>Time inside</th></tr></thead>
+      <tbody id="inside-body"></tbody>
+    </table></div>
+  </section>
+
+  <section id="reports">
+    <div class="bar">
+      <label>From<input type="date" id="from"></label>
+      <label>To<input type="date" id="to"></label>
+      <button class="btn" id="run">Generate report</button>
+      <button class="btn alt" id="csv">Export CSV</button>
+      <button class="btn alt" id="print">Print</button>
+    </div>
+    <p id="summary" style="color:var(--muted)"></p>
+    <div class="wrap"><table>
+      <thead><tr><th>Student ID</th><th>Name</th><th>Course</th><th>Time in</th><th>Time out</th><th>Duration</th></tr></thead>
+      <tbody id="report-body"></tbody>
+    </table></div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+/* ===== 1. CONFIG – palitan ayon sa Supabase project ng team ===== */
+const CONFIG = {
+  SUPABASE_URL: "",       // e.g. https://xxxx.supabase.co
+  SUPABASE_KEY: "",       // anon public key
+  LOGS: "attendance_logs",   // table ng check-in/out
+  PATRONS: "patrons",        // table ng students (dapat may foreign key ang LOGS.patron_id -> PATRONS.id)
+  COL: { timeIn: "time_in", timeOut: "time_out", sid: "student_id", name: "name", course: "course" }
+};
+/* Kung blangko ang URL/KEY, gagamit ng demo data para makita mo agad kung gumagana. */
+
+const C = CONFIG.COL;
+const demo = !CONFIG.SUPABASE_URL || !CONFIG.SUPABASE_KEY;
+const db = demo ? null : supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
+const $ = id => document.getElementById(id);
+$("mode").textContent = demo ? "Demo data" : "Live – Supabase";
+
+/* ===== 2. Data layer ===== */
+function demoRows() {
+  const names = [["2023-0001","Ana Reyes","BSIT"],["2023-0002","Ben Cruz","BSCS"],["2023-0003","Carla Diaz","BSED"],["2023-0004","Dan Lim","BSIT"],["2023-0005","Eli Tan","BSBA"]];
+  const now = Date.now(), out = [];
+  for (let d = 0; d < 5; d++) names.forEach((n, i) => {
+    const tin = new Date(now - d * 864e5 - (i + 1) * 36e5);
+    const stillIn = d === 0 && i % 2 === 0;
+    out.push({ [C.timeIn]: tin.toISOString(), [C.timeOut]: stillIn ? null : new Date(+tin + (30 + i * 15) * 6e4).toISOString(),
+      patron: { [C.sid]: n[0], [C.name]: n[1], [C.course]: n[2] } });
+  });
+  return out;
+}
+async function fetchLogs({ from, to, openOnly } = {}) {
+  if (demo) {
+    return demoRows().filter(r => (!openOnly || !r[C.timeOut]) && (!from || new Date(r[C.timeIn]) >= from) && (!to || new Date(r[C.timeIn]) <= to));
+  }
+  let q = db.from(CONFIG.LOGS)
+    .select(`${C.timeIn}, ${C.timeOut}, patron:${CONFIG.PATRONS}(${C.sid}, ${C.name}, ${C.course})`)
+    .order(C.timeIn, { ascending: false });
+  if (openOnly) q = q.is(C.timeOut, null);
+  if (from) q = q.gte(C.timeIn, from.toISOString());
+  if (to) q = q.lte(C.timeIn, to.toISOString());
+  const { data, error } = await q;
+  if (error) { showErr("Hindi ma-load ang data: " + error.message + " (check table/column names sa CONFIG at ang RLS policies)"); return []; }
+  $("err").style.display = "none";
+  return data;
+}
+function showErr(m) { const e = $("err"); e.textContent = m; e.style.display = "block"; }
+
+/* ===== 3. Helpers ===== */
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const fmtDT = s => s ? new Date(s).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "–";
+const fmtT = s => new Date(s).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+function dur(ms) { const m = Math.max(0, Math.round(ms / 6e4)); return m >= 60 ? Math.floor(m / 60) + "h " + (m % 60) + "m" : m + " min"; }
+const startOfDay = (d = new Date()) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
+const endOfDay = d => { const x = new Date(d); x.setHours(23,59,59,999); return x; };
+
+/* ===== 4. Dashboard ===== */
+async function loadDashboard() {
+  const rows = await fetchLogs({ from: startOfDay() });
+  const open = await fetchLogs({ openOnly: true });
+  $("c-inside").textContent = open.length;
+  $("c-today").textContent = rows.length;
+  const done = rows.filter(r => r[C.timeOut]);
+  $("c-avg").textContent = done.length ? dur(done.reduce((s, r) => s + (new Date(r[C.timeOut]) - new Date(r[C.timeIn])), 0) / done.length) : "–";
+
+  const hours = Array(24).fill(0);
+  rows.forEach(r => hours[new Date(r[C.timeIn]).getHours()]++);
+  const max = Math.max(...hours);
+  $("c-peak").textContent = max ? new Date(2000, 0, 1, hours.indexOf(max)).toLocaleTimeString([], { hour: "numeric" }) : "–";
+  const from = 6, to = 21;   // 6 AM – 9 PM
+  $("chart").innerHTML = hours.slice(from, to + 1).map((n, i) =>
+    `<div style="height:${max ? (n / max) * 100 : 0}%" data-tip="${n} check-in(s)"></div>`).join("");
+  $("labels").innerHTML = hours.slice(from, to + 1).map((_, i) => `<span>${(from + i) % 12 || 12}</span>`).join("");
+}
+
+/* ===== 5. Currently In ===== */
+let insideRows = [];
+async function loadInside() { insideRows = await fetchLogs({ openOnly: true }); renderInside(); }
+function renderInside() {
+  const term = $("q").value.trim().toLowerCase();
+  const rows = insideRows.filter(r => !term || [r.patron?.[C.sid], r.patron?.[C.name]].join(" ").toLowerCase().includes(term));
+  $("inside-body").innerHTML = rows.length ? rows.map(r => {
+    const ms = Date.now() - new Date(r[C.timeIn]);
+    return `<tr><td>${esc(r.patron?.[C.sid])}</td><td>${esc(r.patron?.[C.name])}</td><td>${esc(r.patron?.[C.course])}</td>
+      <td>${fmtT(r[C.timeIn])}</td><td class="${ms > 6 * 36e5 ? "long" : ""}">${dur(ms)}</td></tr>`;
+  }).join("") : `<tr><td colspan="5" class="empty">No one is inside right now.</td></tr>`;
+}
+
+/* ===== 6. Reports ===== */
+let reportRows = [];
+async function runReport() {
+  if (!$("from").value || !$("to").value) return showErr("Pumili muna ng From at To date.");
+  const from = startOfDay($("from").value + "T00:00"), to = endOfDay($("to").value + "T00:00");
+  if (from > to) return showErr("Ang From date ay dapat mauna sa To date.");
+  $("err").style.display = "none";
+  reportRows = await fetchLogs({ from, to });
+  $("report-body").innerHTML = reportRows.length ? reportRows.map(r => `<tr>
+    <td>${esc(r.patron?.[C.sid])}</td><td>${esc(r.patron?.[C.name])}</td><td>${esc(r.patron?.[C.course])}</td>
+    <td>${fmtDT(r[C.timeIn])}</td><td>${fmtDT(r[C.timeOut])}</td>
+    <td>${r[C.timeOut] ? dur(new Date(r[C.timeOut]) - new Date(r[C.timeIn])) : "Still inside"}</td></tr>`).join("")
+    : `<tr><td colspan="6" class="empty">No records for this date range.</td></tr>`;
+  const unique = new Set(reportRows.map(r => r.patron?.[C.sid])).size;
+  $("summary").textContent = `${reportRows.length} check-in(s) from ${unique} student(s), ${$("from").value} to ${$("to").value}.`;
+}
+function exportCSV() {
+  if (!reportRows.length) return showErr("Mag-generate muna ng report bago i-export.");
+  const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const lines = [["Student ID","Name","Course","Time In","Time Out"].join(",")].concat(reportRows.map(r =>
+    [r.patron?.[C.sid], r.patron?.[C.name], r.patron?.[C.course], r[C.timeIn], r[C.timeOut]].map(q).join(",")));
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv" }));
+  a.download = `attendance-${$("from").value}_to_${$("to").value}.csv`;
+  a.click();
+}
+
+/* ===== 7. Wiring ===== */
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("nav button, section").forEach(e => e.classList.remove("on"));
+  b.classList.add("on"); $(b.dataset.tab).classList.add("on");
+  if (b.dataset.tab === "dash") loadDashboard();
+  if (b.dataset.tab === "inside") loadInside();
+});
+$("q").oninput = renderInside;
+$("refresh").onclick = loadInside;
+$("run").onclick = runReport;
+$("csv").onclick = exportCSV;
+$("print").onclick = () => window.print();
+$("to").value = new Date().toISOString().slice(0, 10);
+$("from").value = new Date(Date.now() - 6 * 864e5).toISOString().slice(0, 10);
+loadDashboard();
+setInterval(() => {   // auto-refresh every 15s
+  if ($("dash").classList.contains("on")) loadDashboard();
+  if ($("inside").classList.contains("on")) loadInside();
+}, 15000);
+</script>
+</body>
+</html>
