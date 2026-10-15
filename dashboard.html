@@ -162,7 +162,7 @@
                 </span>
               </a>
 
-               <a
+              <a
                 class="action-card"
                 href="patrons-list.html"
               >
@@ -179,6 +179,30 @@
                   <small>
                     Search, view and manage patron records.
                   </small>
+                </span>
+              </a>
+
+              <a class="action-card" href="change-password.html">
+                <span class="action-icon" aria-hidden="true">🔑</span>
+                <span>
+                  <strong>Change Password</strong>
+                  <small>Update your own password.</small>
+                </span>
+              </a>
+
+              <a class="action-card" href="admin-approvals.html" data-admin-only style="display:none">
+                <span class="action-icon" aria-hidden="true">✓</span>
+                <span>
+                  <strong>Account Approvals</strong>
+                  <small>Approve or reject new staff.</small>
+                </span>
+              </a>
+
+              <a class="action-card" href="csv.html" data-admin-only style="display:none">
+                <span class="action-icon" aria-hidden="true">★</span>
+                <span>
+                  <strong>CSV (Comma-Separated Values)</strong>
+                  <small>Leaderboard and PDF reports.</small>
                 </span>
               </a>
             </nav>
@@ -199,5 +223,15 @@
     <script src="auth.js"></script>
     <script src="access.js"></script>
     <script src="javascript-stuff.js"></script>
+    <script>
+      (async () => {
+        const { data } = await db.auth.getSession();
+        if (!data.session) return;
+        const { data: p } = await db.from("profiles").select("role").eq("id", data.session.user.id).single();
+        if (p && String(p.role).toLowerCase().includes("admin")) {
+          document.querySelectorAll("[data-admin-only]").forEach((el) => (el.style.display = ""));
+        }
+      })();
+    </script>
   </body>
 </html>
