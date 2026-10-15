@@ -219,8 +219,9 @@
     return null;
   }
 
+  // Exact match, same rule as access.js and public.is_admin() in the database.
   function isAdminRole(role) {
-    return String(role || "").toLowerCase().includes("admin");
+    return role === "admin";
   }
 
   /**

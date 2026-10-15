@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="ui-structure.css" />
   </head>
 
-  <body data-requires-session="true" data-requires-permission="check_in_out">
+  <body data-requires-session="true" data-requires-permission="check_in_out" data-exit-lock="true">
     <main class="app-shell">
       <a
         class="skip-link"
@@ -117,14 +117,12 @@
               </p>
 
               <div class="form-actions">
-                <a
-                  class="button button-secondary button-link"
-                  href="dashboard.html"
+                <button
+                  id="exit-button"
+                  class="button button-secondary"
+                  type="button"
                 >
-                  Cancel
-                </a>
-                <button id="undo-button" class="button button-secondary" type="button" data-requires-permission="undo_entry">
-                  Undo last entry
+                  Exit
                 </button>
 
                 <button
@@ -171,6 +169,65 @@
         </main>
       </div>
     </main>
+
+    <!-- Exit lock: leaving this page needs the signed-in staff member's password -->
+    <dialog
+      id="exit-dialog"
+      class="lock-dialog"
+      aria-labelledby="exit-title"
+    >
+      <form id="exit-form" novalidate>
+        <p class="eyebrow">Staff only</p>
+
+        <h2 id="exit-title">
+          Password required
+        </h2>
+
+        <p id="exit-description" class="form-note">
+          Enter the staff password to leave the check-in page.
+        </p>
+
+        <div class="field">
+          <label for="exit-password">
+            Password
+          </label>
+
+          <!-- "new-password" stops the browser from filling in a saved staff password for a visitor -->
+          <input
+            id="exit-password"
+            name="password"
+            type="password"
+            autocomplete="new-password"
+            required
+          />
+        </div>
+
+        <p
+          id="exit-error"
+          class="validation-message"
+          role="alert"
+          hidden
+        ></p>
+
+        <div class="form-actions">
+          <button
+            id="exit-cancel"
+            class="button button-secondary"
+            type="button"
+          >
+            Stay on this page
+          </button>
+
+          <button
+            id="exit-confirm"
+            class="button button-primary"
+            type="submit"
+          >
+            Unlock
+          </button>
+        </div>
+      </form>
+    </dialog>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
     <script src="supabase-config.js"></script>

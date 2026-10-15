@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="ui-structure.css" />
 
     <style>
-      .head-actions { display: flex; flex-wrap: wrap; gap: var(--space-1); align-self: flex-start; }
       .row-actions { display: flex; flex-wrap: wrap; gap: var(--space-1); }
       .row-actions .button { min-height: 36px; padding: 6px var(--space-2); font-size: 0.85rem; }
       .button-danger { color: #fff; background: var(--danger); border-color: var(--danger); }
@@ -53,7 +52,7 @@
             <p class="eyebrow">Admin only</p>
             <h2>Admins only</h2>
             <p class="form-note">Your account does not have admin access to account approvals.</p>
-            <a class="button button-primary button-link" href="dashboard.html">← Back to Dashboard</a>
+            <a class="button button-primary button-link" href="dashboard.html"><span aria-hidden="true">←</span>&nbsp;Back to Dashboard</a>
           </section>
 
           <section id="approvals" class="panel table-panel" aria-labelledby="approvals-title" hidden>
@@ -63,10 +62,7 @@
                 <h2 id="approvals-title">Account Approvals</h2>
                 <p id="approvals-description">Loading…</p>
               </div>
-              <div class="head-actions">
-                <a class="button button-dashboard button-link" href="dashboard.html">← Dashboard</a>
-                <button id="refresh-button" class="button button-dashboard" type="button">Refresh</button>
-              </div>
+              <a class="button button-dashboard button-link" href="dashboard.html"><span aria-hidden="true">←</span>&nbsp;Dashboard</a>
             </div>
 
             <div class="table-wrap">
@@ -91,6 +87,10 @@
               Approving sets the account to <em>active</em> with the role you choose. Rejected accounts cannot log in.
               Only approve people you recognize as library staff.
             </aside>
+
+            <div class="form-actions">
+              <button id="refresh-button" class="button button-secondary" type="button">Refresh</button>
+            </div>
           </section>
         </div>
       </div>
@@ -248,7 +248,9 @@
         const guard = await SessionGuard.requireStaff({ adminOnly: true });
         if (!guard) return;
 
-        $("#session-label").textContent = `Signed in: ${guard.profile.staff_id}`;
+        const role = String(guard.profile.role || "");
+        const roleText = role ? ` (${role.charAt(0).toUpperCase()}${role.slice(1)})` : "";
+        $("#session-label").textContent = `Signed in: ${guard.profile.staff_id}${roleText}`;
         $("#session-label").hidden = false;
         $("#logout-button").hidden = false;
         $("#logout-button").addEventListener("click", () => SessionGuard.logout("welcome.html"));

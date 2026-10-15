@@ -12,19 +12,19 @@
 
 const PERMISSIONS = {
   admin: [
-    "check_in_out", "undo_entry", "force_checkout",
+    "check_in_out", "force_checkout",
     "view_currently_in", "view_reports",
     "export_reports", "manage_patrons", "approve_staff", "manage_roles"
   ],
   staff: [
-    "check_in_out", "undo_entry", "force_checkout",
+    "check_in_out", "force_checkout",
     "view_currently_in", "view_reports"
   ]
 };
 
 const ROLE_LABELS = { admin: "Admin", staff: "Staff" };
 
-// Permission lookup: an array scan over at most 9 entries, so effectively O(1).
+// Permission lookup: an array scan over at most 8 entries, so effectively O(1).
 // An unknown or missing role gets nothing.
 function can(role, action) {
   const allowed = PERMISSIONS[role];
