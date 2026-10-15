@@ -1,21 +1,13 @@
-const directory = {
-  "L1": { name: "Vitto, Dag Johny Phol M.", type: "Student" },
-  "L2": { name: "Pineda, Christian James T.", type: "Student" },
-  "L3": { name: "Lolin, Angeline M.", type: "Student" },
-  "L4": { name: "Amongan, Shamille E.", type: "Student" },
-  "S1": { name: "Jordan Reyes", type: "Staff" }
-};
-
-
 // Patron lookup: a Map is a hash table.
-// Loading from Supabase once at startup is O(n) for n patrons.
+// Loading from Supabase at startup is O(n) for n patrons, and it is refreshed every minute.
 // patrons.get(id) / patrons.has(id) stay O(1) on average.
 const patrons = new Map();
 
 async function loadPatrons() {
-  patrons.clear();
   const { data, error } = await db.from("patrons").select("id_number, full_name, type, status");
   if (error) { console.error("Could not load patrons", error); return false; }
+  // Clear only after the fetch worked, so the Map is never empty while waiting for the network.
+  patrons.clear();
   data.forEach((p) => patrons.set(p.id_number, { name: p.full_name, type: p.type, status: p.status }));
   return true;
 }
@@ -105,7 +97,7 @@ function formatTime(iso) {
   const d = new Date(iso);
   if (isNaN(d)) return iso;
   return new Intl.DateTimeFormat("en-PH", { timeZone: "Asia/Manila", hour: "numeric", minute: "2-digit" }).format(d);
-} 
+}
 function goTo(page) { window.location.href = page; }
 
 function showScanResult(result) {
@@ -134,6 +126,7 @@ function addLog(action, visit, by) {
 
 // Staff action: check someone out who forgot to scan out. Saved to the database as a check_out.
 async function forceCheckOut(id) {
+  if (typeof can === "function" && !can(state.staff?.role, "force_checkout")) return;
   const visit = state.visits.get(id);
   if (!visit) return;
   if (!confirm(`Force check-out ${visit.name}?`)) return;
@@ -165,11 +158,11 @@ function manilaParts(date) {
 
 function isStale(visit) {
   const checkedIn = new Date(visit.checkinTime);
-  if (isNaN(checkedIn)) return true; 
+  if (isNaN(checkedIn)) return true;
   const then = manilaParts(checkedIn);
   const now = manilaParts(new Date());
-  if (now.day > then.day) return true; 
-  return now.hour >= CLOSING_HOUR && then.hour < CLOSING_HOUR; 
+  if (now.day > then.day) return true;
+  return now.hour >= CLOSING_HOUR && then.hour < CLOSING_HOUR;
 }
 
 
@@ -198,6 +191,7 @@ async function autoCloseVisits() {
 // Undo the most recent database entry by adding a "correction" row (rows are never deleted).
 // Then the visits Map is rebuilt from the logs, where a correction reverses the event before it.
 async function undoLastEntry() {
+  if (typeof can === "function" && !can(state.staff?.role, "undo_entry")) return;
   const { data, error } = await db
     .from("attendance_logs")
     .select("id_number, event_type, event_time")
@@ -364,8 +358,12 @@ async function requireSession() {
 
   if (!profile || profile.status !== "active") return reject();
 
-   state.staff = { id: profile.staff_id, role: profile.role, uid: data.session.user.id };
+  // The role always comes from the database on every page load, never from localStorage.
+  state.staff = { id: profile.staff_id, role: profile.role, uid: data.session.user.id };
   saveState();
+
+  // Access module: block pages this role may not open (see access.js).
+  if (typeof enforcePageAccess === "function" && !enforcePageAccess(profile.role)) return false;
   return true;
 }
 
@@ -393,8 +391,10 @@ function renderActiveTable() {
   const description = document.querySelector("#active-description");
   if (!tbody) return;
   tbody.innerHTML = "";
+  const mayForceCheckOut = typeof can !== "function" || can(state.staff?.role, "force_checkout");
   state.visits.forEach((visit) => {
     addRow(tbody, [visit.id, visit.name, formatTime(visit.checkinTime)]);
+    if (!mayForceCheckOut) return;
 
     const td = document.createElement("td");
     const btn = document.createElement("button");
@@ -534,6 +534,7 @@ requireSession().then(async (allowed) => {
   }
 
   setupHeader();
+  if (typeof applyRoleUI === "function" && state.staff) applyRoleUI(state.staff.role);
   setupLogin();
   setupScan();
   setupUndo();
@@ -543,6 +544,8 @@ requireSession().then(async (allowed) => {
   renderLogTable();
 
     setInterval(async () => {
+    // Pick up patrons added or deactivated on the Profile pages (only on pages that need a login).
+    if (document.body.dataset.requiresSession === "true") await loadPatrons();
     if ((await autoCloseVisits()) > 0) {
       renderDashboard();
       renderActiveTable();

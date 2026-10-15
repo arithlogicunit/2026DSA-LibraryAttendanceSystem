@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+
+    <title>Patron Profile | Library Visit Desk</title>
+
+    <link rel="stylesheet" href="ui-structure.css" />
+  </head>
+
+  <body data-requires-session="true" data-page="patron-view">
+    <main class="app-shell">
+      <a class="skip-link" href="#main-content">
+        Skip to main content
+      </a>
+
+      <div class="page-wrap">
+        <header class="masthead">
+          <div class="brand-mark">
+            <img
+              src="assets/NUD-LRC.jpg"
+              alt="School Logo"
+            />
+          </div>
+
+          <div class="system-name">
+            <p class="school-name">
+              National University - Dasmariñas
+            </p>
+
+            <h1>
+              Attendance Monitoring<br />
+              Library Management System
+            </h1>
+          </div>
+
+          <div class="header-actions">
+            <span
+              id="session-label"
+              class="session-label"
+              hidden
+            ></span>
+
+            <button
+              id="logout-button"
+              class="button button-header"
+              type="button"
+              hidden
+            >
+              Log out
+            </button>
+          </div>
+        </header>
+
+        <main
+          id="main-content"
+          class="page-stage"
+        >
+          <section
+            class="panel"
+            aria-labelledby="profile-title"
+          >
+            <div class="screen-heading split-heading">
+              <div>
+                <p class="eyebrow">Patron profiles</p>
+
+                <h2 id="profile-title">
+                  PATRON PROFILE
+                </h2>
+              </div>
+
+              <a
+                class="button button-dashboard button-link"
+                href="patrons-list.html"
+              >
+                ← Patron list
+              </a>
+            </div>
+
+            <p
+              id="view-message"
+              class="validation-message"
+              role="alert"
+              hidden
+            ></p>
+
+            <dl class="profile-details">
+              <dt>ID number</dt>
+              <dd id="p-id"></dd>
+
+              <dt>Full name</dt>
+              <dd id="p-name"></dd>
+
+              <dt>Type</dt>
+              <dd id="p-type"></dd>
+
+              <dt>Status</dt>
+              <dd id="p-status"></dd>
+            </dl>
+
+            <h3>Recent visits</h3>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>Event</th>
+                  <th>Date and time</th>
+                </tr>
+              </thead>
+
+              <tbody id="visit-rows"></tbody>
+            </table>
+
+            <div
+              id="admin-actions"
+              class="form-actions"
+              hidden
+            >
+              <a
+                id="edit-patron"
+                class="button button-primary button-link"
+                href="#"
+              >
+                Edit
+              </a>
+
+              <button
+                id="toggle-status"
+                class="button button-secondary"
+                type="button"
+              >
+                Deactivate
+              </button>
+            </div>
+          </section>
+        </main>
+      </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+    <script src="supabase-config.js"></script>
+    <script src="auth.js"></script>
+    <script src="javascript-stuff.js"></script>
+    <script src="profile.js"></script>
+  </body>
+</html>

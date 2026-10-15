@@ -66,7 +66,7 @@
           >
             <div class="screen-heading dashboard-heading">
               <div>
-                <p class="eyebrow">Admin profile</p>
+                <p class="eyebrow" id="role-label">Staff profile</p>
 
                 <h2 id="dashboard-title">
                   DASHBOARD
@@ -85,6 +85,16 @@
               </div>
             </div>
 
+            <aside
+              id="access-denied"
+              class="privacy-note"
+              role="alert"
+              hidden
+            >
+              <strong>Access denied:</strong>
+              your role does not have permission to open that page.
+            </aside>
+
             <nav
               class="action-grid"
               aria-label="Desk actions"
@@ -92,6 +102,7 @@
               <a
                 class="action-card primary-action"
                 href="in-out.html"
+                data-requires-permission="check_in_out"
               >
                 <span
                   class="action-icon"
@@ -112,6 +123,7 @@
               <a
                 class="action-card"
                 href="active.html"
+                data-requires-permission="view_currently_in"
               >
                 <span
                   class="action-icon"
@@ -132,6 +144,7 @@
               <a
                 class="action-card"
                 href="logs.html"
+                data-requires-permission="view_reports"
               >
                 <span
                   class="action-icon"
@@ -148,6 +161,27 @@
                   </small>
                 </span>
               </a>
+
+              <a
+                class="action-card"
+                href="patrons-list.html"
+              >
+                <span
+                  class="action-icon"
+                  aria-hidden="true"
+                >
+                  ☰
+                </span>
+
+                <span>
+                  <strong>Patron Profiles</strong>
+
+                  <small>
+                    Search, view and manage patron records.
+                  </small>
+                </span>
+              </a>
+
               <a class="action-card" href="change-password.html">
                 <span class="action-icon" aria-hidden="true">🔑</span>
                 <span>
@@ -187,6 +221,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
     <script src="supabase-config.js"></script>
     <script src="auth.js"></script>
+    <script src="access.js"></script>
     <script src="javascript-stuff.js"></script>
     <script>
       (async () => {

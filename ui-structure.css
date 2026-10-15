@@ -718,3 +718,66 @@ tbody tr:hover {
     grid-column: auto;
   }
 }
+
+/* =========================
+   PROFILE
+   ========================= */
+
+/* .form-actions uses display: flex, which overrides the hidden attribute. */
+#add-patron[hidden],
+#admin-actions[hidden] {
+  display: none;
+}
+
+/* Patron profile details */
+.profile-details {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-1) var(--space-3);
+  margin: var(--space-3) 0;
+}
+
+.profile-details dt {
+  font-weight: 800;
+}
+
+.profile-details dd {
+  margin: 0;
+}
+
+/* Patron list: clickable rows, and the search and sort row */
+.clickable-row {
+  cursor: pointer;
+}
+
+.list-tools {
+  display: grid;
+  grid-template-columns: 1fr 200px 170px;
+  gap: var(--space-3);
+}
+
+@media (max-width: 700px) {
+  .list-tools {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Message row inside a table (loading, no matches, errors) */
+.message-row:hover {
+  background: #fff;
+}
+
+.table-message {
+  padding: var(--space-3) var(--space-2);
+  color: var(--muted);
+  text-align: center;
+}
+
+.table-message.error {
+  color: var(--danger);
+  font-weight: 750;
+}
+/* Access module: elements hidden by role must stay hidden even if a class sets display. */
+[data-requires-permission][hidden] {
+  display: none !important;
+}
